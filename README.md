@@ -1,22 +1,20 @@
-# HyprWhspr 🎤
+# hyprwhspr
 
-**Native speech-to-text for Omarchy** - Fast, accurate, easy and fully integrated.
+**Native speech-to-text for Arch / Omarchy** - Fast, accurate, easy and fully integrated.
 
 ---
 
-- **Optimized for Omarchy** - Seamless integration with Omarchy/Hyprland & Waybar
-- **Whisper-powered** - State-of-the-art speech recognition via Whisper
+- **Optimized for Arch Linux / Omarchy** - Seamless integration with [Omarchy](https://omarchy.org/) / [Hyprland](https://github.com/hyprwm/Hyprland) & [Waybar](https://github.com/Alexays/Waybar)
+- **Whisper-powered** - State-of-the-art speech recognition via [OpenAI's Whisper](https://github.com/openai/whisper)
 - **NVIDIA GPU support** - Automatic CUDA detection and acceleration
-- **Zero-config audio** - Auto-detects PipeWire/ALSA devices
-- **Audio feedback** - Optional sound notifications for recording start/stop
 - **Word overrides** - Customize transcriptions and corrections
-- **Systemd integration** - Starts automatically on login
-- **No root** - Runs in user space
+- **Run as user** - Runs in user space, just sudo once for the installer
 
 ## Quick start
 
 ### Prerequisites
-- **Omarchy**
+
+- **[Omarchy](https://omarchy.org/)**
 - **NVIDIA GPU** (optional, for acceleration)
 
 ### Installation
@@ -31,7 +29,7 @@ cd hyprwhisper
 ```
 
 **The installer will:**
-1. ✅ Install system dependencies (ydotoold, etc.)
+1. ✅ Install system dependencies (ydotool, etc.)
 2. ✅ Clone and build whisper.cpp (with CUDA if GPU available)
 3. ✅ Download base Whisper models
 4. ✅ Set up systemd services for omarchy-whisper & ydotoolds
@@ -40,18 +38,13 @@ cd hyprwhisper
 
 ### First use
 
+> Ensure your microphone of choice is available in audio settings.
+
 1. **Log out and back in** (for group permissions)
 2. **Press `Super+Alt+D`** to start dictation
-3. **Speak naturally** - text appears instantly
+3. **Speak naturally**
 4. **Press `Super+Alt+D`** again to stop dictation
-
-x. **Check system tray** for status indicators
-
-**Note:** Audio feedback is disabled by default. If you want sound notifications when starting/stopping dictation, enable it in the configuration section below.
-
-If you heard the audio cue but did not see your text appear...
-
-Ensure your microphone of choice is available in audio settings, input.
+5. **Bam!** Text appears in active buffer!
 
 ## Usage
 
@@ -59,40 +52,17 @@ Ensure your microphone of choice is available in audio settings, input.
 
 - **`Super+Alt+D`** - Toggle dictation on/off
 
-### Status icons
-
-Minimal waybar feedback.
-
-- **󰍬** - Ready to record (Hyprwhspr running, ydotool working)
-- **󰍯** - Currently recording (actively processing audio)
-- **󰆉** - Issue detected (Hyprwhspr not running or ydotool not working)s
-
-_Inspired by Whispertux._
-
-### Audio feedback
-
-Enable custom sound notifications for recording start/stop:
-
-```jsonc
-{
-    "audio_feedback": true,
-    "start_sound_volume": 0.3,
-    "stop_sound_volume": 0.3,
-    "start_sound_path": "custom-start.ogg",  // Optional custom start sound
-    "stop_sound_path": "custom-stop.ogg"     // Optional custom stop sound
-}
-```
-
 ## Configuration
 
 Edit `~/.config/hyprwhspr/config.json`:
 
-**Minimal config** - only 2 essential options:
+**Minimal config** - only 3 essential options:
 
-```json
+```jsonc
 {
     "primary_shortcut": "SUPER+ALT+D",
-    "model": "base.en"
+    "model": "base.en",
+    "audio_feedback": true, // Optional
 }
 ```
 
@@ -110,7 +80,7 @@ Edit `~/.config/hyprwhspr/config.json`:
 ```json
 {
     "word_overrides": {
-        "hyperwhisper": "HyprWhspr",
+        "hyperwhisper": "hyprwhspr",
         "omarchie": "Omarchy"
     }
 }
@@ -132,13 +102,13 @@ Edit `~/.config/hyprwhspr/config.json`:
 - **Start recording**: `ping-up.ogg` (ascending tone)
 - **Stop recording**: `ping-down.ogg` (descending tone)
 
+_Thanks for [the sounds](https://github.com/akx/Notifications), @akx!_
+
 **Custom sounds:**
 - **Supported formats**: `.ogg`, `.wav`, `.mp3`
 - **Fallback**: Uses defaults if custom files don't exist
 
 ### Waybar integration
-
-**Enhanced JSON output with dynamic tooltips and CSS animations**
 
 Add to your `~/.config/waybar/config`:
 
@@ -164,18 +134,6 @@ Add to your `~/.config/waybar/config`:
 @import "/opt/hyprwhspr/config/waybar/hyprwhspr-style.css";
 ```
 
-**Features:**
-- **Dynamic tooltips** that change based on current state
-- **Smooth animations** for recording, error, and ready states
-- **JSON output** with CSS classes for styling
-- **Real-time updates** with `exec-on-event: true`
-
-**Icon states:**
-
-- **󰍬** - Ready to record (Hyprwhspr running, ydotool working)
-- **󰍯** - Currently recording (actively processing audio)
-- **󰆉** - Issue detected (Hyprwhspr not running or ydotool not working)
-
 **Click interactions:**
 
 - **Left-click**: Toggle Hyprwhspr on/off
@@ -187,7 +145,7 @@ Add to your `~/.config/waybar/config`:
 
 ### NVIDIA GPU Acceleration
 
-Use if adding GPU after GPU-less installation
+Use if adding GPU after GPU-less installation:
 
 ```bash
 # Build with CUDA support (if NVIDIA detected)
@@ -196,6 +154,8 @@ Use if adding GPU after GPU-less installation
 # Test GPU acceleration
 /opt/hyprwhspr/scripts/build-whisper-nvidia.sh --test
 ```
+
+Or re-run install script.
 
 ### Whisper Models
 
@@ -219,12 +179,12 @@ sh ./models/download-ggml-model.sh small.en     # ~244MB
 sh ./models/download-ggml-model.sh small        # ~244MB
 
 # Medium models (high accuracy)
-sh ./models/download-ggml-model.sh medium.en    # ~769MB
-sh ./models/download-ggml-model.sh medium       # ~769MB
+sh ./models/download-ggml-model.sh medium.en    # ⚠️ ~769MB
+sh ./models/download-ggml-model.sh medium       # ⚠️ ~769MB
 
 # Large models (best accuracy, requires GPU)
-sh ./models/download-ggml-model.sh large        # ~1.5GB
-sh ./models/download-ggml-model.sh large-v3     # ~1.5GB (latest)
+sh ./models/download-ggml-model.sh large        # ⚠️ ~1.5GB
+sh ./models/download-ggml-model.sh large-v3     # ⚠️ ~1.5GB (latest)
 ```
 
 **⚠️ GPU Acceleration Required:**
@@ -247,19 +207,6 @@ Without a GPU, these models will be extremely slow (10-30 seconds per transcript
 {
     "model": "small.en"
 }
-```
-
-**Other DEs:**
-
-Gnome, KDE, etc might work.
-
-Untested.
-
-### Manual Permissions Fix
-
-```bash
-# If you encounter permission issues
-/opt/hyprwhspr/scripts/fix-uinput-permissions.sh
 ```
 
 ## Architecture
@@ -365,6 +312,10 @@ systemctl --user status hyprwhspr.service
 2. **Verify permissions**: Run the permissions fix script
 3. **Test components**: Check ydotool, audio devices, whisper.cpp
 4. **Report issues**: Include logs and system information
+
+## Other DEs
+
+Gnome, KDE, etc might work. Untested. Try!
 
 ## Updates
 
