@@ -10,7 +10,12 @@
  waybar integration | audio feedback | auto-paste | cpu or gpu | easy setup
 </p>
 
-https://github.com/user-attachments/assets/d03f811e-6f57-45d5-96b9-69032935a8c7
+ <p align="center">
+    <i>pssst...un-mute!</i>
+ </p>
+
+https://github.com/user-attachments/assets/40cb1837-550c-4e6e-8d61-07ea59898f12
+
 
 
 ---
