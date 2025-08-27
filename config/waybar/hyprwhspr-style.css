@@ -1,29 +1,57 @@
 /* HyprWhspr Waybar Styling - Waybar Compatible */
 
-/* Base */
+/* Base styles - same icon for all states, only colors change */
 #custom-hyprwhspr {
   margin: 0 16px;
   font-size: 16px;
   font-weight: bold;
-  color: #98c379;              /* ready */
   border-bottom: 2px solid transparent;
   transition: color 150ms ease-in-out, border-color 150ms ease-in-out;
 }
 
-/* READY */
+/* READY state - green with transparent underline */
 #custom-hyprwhspr.ready {
-  color: #98c379;
+  color: #98c379;              /* green */
   border-color: transparent;
 }
 
-/* RECORDING: vivid color + underline bar */
+/* RECORDING state - red with red underline */
 #custom-hyprwhspr.recording {
   color: #e86671;              /* rose/red */
   border-color: #e86671;
 }
 
-/* ERROR: amber bar */
+/* ERROR state - amber with amber underline */
 #custom-hyprwhspr.error {
-  color: #e5c07b;
+  color: #e5c07b;              /* amber */
   border-color: #e5c07b;
+}
+
+/* Light mode support - higher contrast colors */
+@media (prefers-color-scheme: light) {
+  #custom-hyprwhspr.ready {
+    color: #059669;            /* emerald-600 - darker green for light mode */
+    border-color: transparent;
+  }
+  
+  #custom-hyprwhspr.recording {
+    color: #dc2626;            /* red-600 - darker red for light mode */
+    border-color: #dc2626;
+  }
+  
+  #custom-hyprwhspr.error {
+    color: #d97706;            /* amber-600 - darker amber for light mode */
+    border-color: #d97706;
+  }
+  
+  /* Hover effects for light mode */
+  #custom-hyprwhspr:hover {
+    filter: brightness(0.8);
+  }
+  
+  /* Focus outline for accessibility */
+  #custom-hyprwhspr:focus {
+    outline: 2px solid #3b82f6;  /* blue-500 focus outline */
+    outline-offset: 2px;
+  }
 }

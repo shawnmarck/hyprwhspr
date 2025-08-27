@@ -158,7 +158,7 @@ setup_whisper() {
     # Add CUDA support if available
     if [ "$use_cuda" = true ]; then
         log_info "Configuring with CUDA support..."
-        cmake -B build -DWHISPER_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+        cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
     fi
     
     cmake --build build -j --config Release
@@ -207,26 +207,43 @@ download_models() {
 
 # Function to setup systemd service
 setup_systemd_service() {
-    log_info "Setting up systemd user service..."
+    log_info "Setting up systemd user services..."
     
     # Create user config directory if it doesn't exist
     mkdir -p "$HOME/.config/systemd/user"
     
-    # Copy service file
+    # Copy hyprwhspr service file
     cp "$INSTALL_DIR/config/systemd/$SERVICE_NAME" "$HOME/.config/systemd/user/"
+    
+    # Copy ydotoold service file
+    if [ -f "$INSTALL_DIR/config/systemd/ydotoold.service" ]; then
+        cp "$INSTALL_DIR/config/systemd/ydotoold.service" "$HOME/.config/systemd/user/"
+        log_info "ydotoold.service copied"
+    else
+        log_warning "ydotoold.service not found in installer config"
+    fi
     
     # If we're installing from local directory, update the service paths
     if [ "$INSTALL_DIR" != "/opt/hyprwhspr" ]; then
         log_info "Updating service paths for local installation..."
         sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$HOME/.config/systemd/user/$SERVICE_NAME"
+        if [ -f "$HOME/.config/systemd/user/ydotoold.service" ]; then
+            sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$HOME/.config/systemd/user/ydotoold.service"
+        fi
         log_success "Service paths updated for local installation"
     fi
     
-    # Reload systemd and enable service
+    # Reload systemd and enable services
     systemctl --user daemon-reload
     systemctl --user enable "$SERVICE_NAME"
     
-    log_success "Systemd service configured"
+    # Enable ydotoold service if it exists
+    if [ -f "$HOME/.config/systemd/user/ydotoold.service" ]; then
+        systemctl --user enable ydotoold.service
+        log_info "ydotoold.service enabled"
+    fi
+    
+    log_success "Systemd services configured"
 }
 
 # Function to setup Hyprland integration
@@ -272,11 +289,39 @@ setup_waybar_integration() {
         if ! grep -q "custom/hyprwhspr" "$waybar_config"; then
             log_info "Adding hyprwhspr module to waybar config..."
             
-            # Add to modules-right array
-            sed -i 's|"modules-right": \[|"modules-right": [\n    "custom/hyprwhspr",|g' "$waybar_config"
+            # Add to modules-right array (simple sed approach)
+            sed -i '/"modules-right": \[/a\    "custom/hyprwhspr",' "$waybar_config"
             
-            # Add the module configuration at the end (before the closing brace)
-            sed -i 's|}$|  "custom/hyprwhspr": {\n    "format": "{}",\n    "exec": "'"$INSTALL_DIR"'/config/hyprland/hyprwhspr-tray.sh status",\n    "interval": 2,\n    "return-type": "json",\n    "exec-on-event": true,\n    "on-click": "'"$INSTALL_DIR"'/config/hyprland/hyprwhspr-tray.sh toggle",\n    "on-click-right": "'"$INSTALL_DIR"'/config/hyprland/hyprwhspr-tray.sh start",\n    "on-click-middle": "'"$INSTALL_DIR"'/config/hyprland/hyprwhspr-tray.sh restart",\n    "tooltip": true\n  }\n}|' "$waybar_config"
+            # Create a separate module config file to avoid mangling the main config
+            cat > "$HOME/.config/waybar/hyprwhspr-module.jsonc" << EOF
+{
+  "custom/hyprwhspr": {
+    "format": "{}",
+    "exec": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh status",
+    "interval": 1,
+    "return-type": "json",
+    "exec-on-event": true,
+    "on-click": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh toggle",
+    "on-click-right": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh start",
+    "on-click-middle": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh restart",
+    "tooltip": true
+  }
+}
+EOF
+            
+            # Add import to the main waybar config (insert after modules-right array)
+            if ! grep -q "hyprwhspr-module.jsonc" "$waybar_config"; then
+                # Find the line number where modules-right array ends and insert after it
+                local line_num=$(grep -n '"modules-right"' "$waybar_config" | head -1 | cut -d: -f1)
+                if [ -n "$line_num" ]; then
+                    # Find the closing bracket of the modules-right array
+                    local end_line=$(awk -v start="$line_num" 'NR>=start && /\]/ {print NR; exit}' "$waybar_config")
+                    if [ -n "$end_line" ]; then
+                        # Insert the include statement after the closing bracket
+                        sed -i "${end_line}a\  \"include\": [\"hyprwhspr-module.jsonc\"]," "$waybar_config"
+                    fi
+                fi
+            fi
             
             log_success "Waybar module added to config"
             
@@ -284,6 +329,26 @@ setup_waybar_integration() {
             if [ -f "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" ]; then
                 cp "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" "$HOME/.config/waybar/"
                 log_success "CSS styling file copied to waybar config directory"
+                
+                # Add CSS import to waybar style.css if not already present (insert at top)
+                local waybar_style="$HOME/.config/waybar/style.css"
+                if [ -f "$waybar_style" ]; then
+                    if ! grep -q "hyprwhspr-style.css" "$waybar_style"; then
+                        # Insert at the beginning of the file (after any existing @import statements)
+                        if grep -q "^@import" "$waybar_style"; then
+                            # If there are existing @import statements, add after the last one
+                            awk '/^@import/ { print; last_import = NR } !/^@import/ { if (last_import && NR == last_import + 1) { print "@import \"'"$INSTALL_DIR"'/config/waybar/hyprwhspr-style.css\";"; print ""; } print }' "$waybar_style" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
+                        else
+                            # If no existing @import statements, add at the very beginning
+                            echo -e "@import \"$INSTALL_DIR/config/waybar/hyprwhspr-style.css\";\n$(cat "$waybar_style")" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
+                        fi
+                        log_success "CSS import added to waybar style.css (at top)"
+                    else
+                        log_info "CSS import already present in waybar style.css"
+                    fi
+                else
+                    log_warning "waybar style.css not found - you may need to manually add: @import \"$INSTALL_DIR/config/waybar/hyprwhspr-style.css\";"
+                fi
             fi
         else
             log_info "Hyprwhspr module already in waybar config"
@@ -316,16 +381,27 @@ setup_user_config() {
         cat > "$USER_CONFIG_DIR/config.json" << INNEREOF
 {
     "primary_shortcut": "SUPER+ALT+D",
-    "model": "$MODEL_PATH",
+    "model": "base.en",
+    "audio_feedback": true,
+    "start_sound_volume": 0.5,
+    "stop_sound_volume": 0.5,
+    "start_sound_path": "ping-up.ogg",
+    "stop_sound_path": "ping-down.ogg",
     "word_overrides": {}
 }
 INNEREOF
-        log_success "Default configuration created with correct model path: $MODEL_PATH"
+        log_success "Default configuration created with audio feedback enabled and short model name: base.en"
     else
-        # Update existing config with correct model path
-        log_info "Updating existing configuration with correct model path..."
-        sed -i "s|\"model\": \"[^\"]*\"|\"model\": \"$MODEL_PATH\"|" "$USER_CONFIG_DIR/config.json"
-        log_success "Configuration updated with correct model path: $MODEL_PATH"
+        # Update existing config with short model name and audio feedback
+        log_info "Updating existing configuration with short model name and audio feedback..."
+        sed -i "s|\"model\": \"[^\"]*\"|\"model\": \"base.en\"|" "$USER_CONFIG_DIR/config.json"
+        
+        # Add audio feedback settings if not present
+        if ! grep -q "\"audio_feedback\"" "$USER_CONFIG_DIR/config.json"; then
+            sed -i 's|"word_overrides": {}|"audio_feedback": true,\n    "start_sound_volume": 0.5,\n    "stop_sound_volume": 0.5,\n    "start_sound_path": "ping-up.ogg",\n    "stop_sound_path": "ping-down.ogg",\n    "word_overrides": {}|' "$USER_CONFIG_DIR/config.json"
+        fi
+        
+        log_success "Configuration updated with short model name and audio feedback settings"
     fi
 }
 
@@ -627,9 +703,6 @@ main() {
     # Setup Hyprland integration
     setup_hyprland_integration
     
-    # Setup waybar integration
-    setup_waybar_integration
-    
     # Setup user configuration
     setup_user_config
     
@@ -651,6 +724,9 @@ main() {
     # Test installation
     test_installation
     
+    # Setup waybar integration LAST (after everything else is working)
+    setup_waybar_integration
+    
     log_success "HyprWhspr installation completed successfully!"
     
     # Show GPU acceleration status
@@ -668,10 +744,8 @@ main() {
     log_info "Next steps:"
     log_info "1. Log out and back in (or reboot) for group changes to take effect"
     log_info "2. Waybar module automatically added to your config"
-    log_info "3. Add CSS styling to your waybar style.css:"
-    log_info "   @import \"$INSTALL_DIR/config/waybar/hyprwhspr-style.css\";"
-    log_info "4. Use Super+Alt+D to start dictation"
-    log_info "5. Check system tray for status with animations"
+    log_info "3. Use Super+Alt+D to start dictation"
+    log_info "4. Check system tray for status"
     log_info ""
     log_info "The service will start automatically on login"
     log_info ""
@@ -679,6 +753,8 @@ main() {
     log_info "• If you encounter permission issues, run: /opt/hyprwhspr/scripts/fix-uinput-permissions.sh"
     log_info "• If GPU acceleration isn't working, run: /opt/hyprwhspr/scripts/build-whisper-nvidia.sh"
     log_info "• Check logs: journalctl --user -u hyprwhspr.service"
+    log_info "• Try restarting the service: systemctl --user restart hyprwhspr.service"
+    log_info "• Stuck? Open a GitHub issue: https://github.com/goodroot/hyprwhspr/issues"
 }
 
 # Run main function

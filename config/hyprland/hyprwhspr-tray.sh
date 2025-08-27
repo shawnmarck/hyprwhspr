@@ -175,13 +175,8 @@ emit_json() {
     
     case "$state" in
         "recording")
-            icon="󰍯"
-            # Simple blink based on current second for recording state
-            if (( $(date +%s) % 2 )); then
-                text="$icon REC"
-            else
-                text="$icon R E C"   # thin spaces to "breathe"
-            fi
+            icon="󰍬"
+            text="$icon REC"
             tooltip="HyprWhspr: Currently recording\n\nLeft-click: Stop recording\nRight-click: Restart\nMiddle-click: Restart"
             ;;
         "error")
@@ -191,7 +186,7 @@ emit_json() {
             ;;
         "ready")
             icon="󰍬"
-            text="$icon"
+            text="$icon RDY"
             tooltip="HyprWhspr: Ready to record\n\nLeft-click: Start recording\nRight-click: Start service\nMiddle-click: Restart service"
             ;;
         *)

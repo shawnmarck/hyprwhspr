@@ -35,7 +35,13 @@ class AudioManager:
         self.stop_volume = self._validate_volume(self.stop_volume)
         
         # Audio file paths - use custom paths if specified, otherwise fall back to defaults
-        self.assets_dir = Path(__file__).parent.parent / "assets"
+        # Look for assets in the installation directory first, then fall back to relative paths
+        install_dir = Path("/opt/hyprwhspr")
+        self.assets_dir = install_dir / "share" / "assets"
+        
+        # Fallback to relative paths if installation directory doesn't exist
+        if not self.assets_dir.exists():
+            self.assets_dir = Path(__file__).parent.parent / "assets"
         
         # Start sound path resolution
         if self.start_sound_path and Path(self.start_sound_path).exists():
@@ -196,17 +202,27 @@ class AudioManager:
     
     def play_start_sound(self) -> bool:
         """Play the recording start sound"""
+        print(f"🔊 play_start_sound called - enabled: {self.enabled}, available: {self.start_sound_available}")
         if not self.enabled or not self.start_sound_available:
+            print(f"❌ Start sound blocked - enabled: {self.enabled}, available: {self.start_sound_available}")
             return False
         
-        return self._play_sound(self.start_sound, self.start_volume)
+        print(f"🔊 Playing start sound: {self.start_sound} (volume: {self.start_volume})")
+        result = self._play_sound(self.start_sound, self.start_volume)
+        print(f"🔊 Start sound result: {'✅ Success' if result else '❌ Failed'}")
+        return result
     
     def play_stop_sound(self) -> bool:
         """Play the recording stop sound"""
+        print(f"🔊 play_stop_sound called - enabled: {self.enabled}, available: {self.stop_sound_available}")
         if not self.enabled or not self.stop_sound_available:
+            print(f"❌ Stop sound blocked - enabled: {self.enabled}, available: {self.stop_sound_available}")
             return False
         
-        return self._play_sound(self.stop_sound, self.stop_volume)
+        print(f"🔊 Playing stop sound: {self.stop_sound} (volume: {self.stop_volume})")
+        result = self._play_sound(self.stop_sound, self.stop_volume)
+        print(f"🔊 Stop sound result: {'✅ Success' if result else '❌ Failed'}")
+        return result
     
     def set_audio_feedback(self, enabled: bool):
         """Enable or disable audio feedback"""
