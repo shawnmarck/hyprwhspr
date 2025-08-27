@@ -1,0 +1,29 @@
+/* HyprWhspr Waybar Styling - Waybar Compatible */
+
+/* Base */
+#custom-hyprwhspr {
+  margin: 0 16px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #98c379;              /* ready */
+  border-bottom: 2px solid transparent;
+  transition: color 150ms ease-in-out, border-color 150ms ease-in-out;
+}
+
+/* READY */
+#custom-hyprwhspr.ready {
+  color: #98c379;
+  border-color: transparent;
+}
+
+/* RECORDING: vivid color + underline bar */
+#custom-hyprwhspr.recording {
+  color: #e86671;              /* rose/red */
+  border-color: #e86671;
+}
+
+/* ERROR: amber bar */
+#custom-hyprwhspr.error {
+  color: #e5c07b;
+  border-color: #e5c07b;
+}

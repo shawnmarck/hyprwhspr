@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# HyprWhspr - Hyprland-optimized voice dictation application
+# Main launcher script
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Set environment variables
+export HYPRWHSPR_ROOT="$PACKAGE_ROOT"
+export PYTHONPATH="$PACKAGE_ROOT/lib:$PYTHONPATH"
+
+# Activate virtual environment if it exists
+if [ -f "$PACKAGE_ROOT/venv/bin/activate" ]; then
+    source "$PACKAGE_ROOT/venv/bin/activate"
+fi
+
+# Run the main application
+exec python3 "$PACKAGE_ROOT/lib/main.py" "$@"
