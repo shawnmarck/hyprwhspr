@@ -1,6 +1,17 @@
-# hyprwhspr
+<h1 align="center">
+    hyprwhspr
+</h1>
 
-**Native speech-to-text for Arch / Omarchy** - Fast, accurate, easy and fully integrated.
+<p align="center">
+    <b>Native speech-to-text for Arch / Omarchy</b> - Fast, accurate, easy and fully integrated.
+</p>
+
+<p align="center">
+ waybar integration | audio feedback | auto-paste | cpu or gpu | easy setup
+</p>
+
+https://github.com/user-attachments/assets/d03f811e-6f57-45d5-96b9-69032935a8c7
+
 
 ---
 
