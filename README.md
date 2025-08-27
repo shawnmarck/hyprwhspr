@@ -65,8 +65,7 @@ Minimal waybar feedback.
 
 - **󰍬** - Ready to record (Hyprwhspr running, ydotool working)
 - **󰍯** - Currently recording (actively processing audio)
-- **󰆉** - Issue detected (Hyprwhspr not running or ydotool not working)
-
+- **󰆉** - Issue detected (Hyprwhspr not running or ydotool not working)s
 
 _Inspired by Whispertux._
 
@@ -79,8 +78,8 @@ Enable custom sound notifications for recording start/stop:
     "audio_feedback": true,
     "start_sound_volume": 0.3,
     "stop_sound_volume": 0.3,
-    "start_sound_path": "custom-start.ogg",  // Optional: custom start sound
-    "stop_sound_path": "custom-stop.ogg"     // Optional: custom stop sound
+    "start_sound_path": "custom-start.ogg",  # Optional: custom start sound
+    "stop_sound_path": "custom-stop.ogg"     # Optional: custom stop sound
 }
 ```
 
@@ -121,11 +120,11 @@ Edit `~/.config/hyprwhspr/config.json`:
 
 ```json
 {
-    "audio_feedback": true,            // Enable audio feedback (default: false)
-    "start_sound_volume": 0.3,        // Start recording sound volume (0.1 to 1.0)
-    "stop_sound_volume": 0.3,         // Stop recording sound volume (0.1 to 1.0)
-    "start_sound_path": "custom-start.ogg",  // Custom start sound (relative to assets)
-    "stop_sound_path": "custom-stop.ogg"     // Custom stop sound (relative to assets)
+    "audio_feedback": true,            # Enable audio feedback (default: false)
+    "start_sound_volume": 0.3,        # Start recording sound volume (0.1 to 1.0)
+    "stop_sound_volume": 0.3,         # Stop recording sound volume (0.1 to 1.0)
+    "start_sound_path": "custom-start.ogg",  # Custom start sound (relative to assets)
+    "stop_sound_path": "custom-stop.ogg"     # Custom stop sound (relative to assets)
 }
 ```
 
