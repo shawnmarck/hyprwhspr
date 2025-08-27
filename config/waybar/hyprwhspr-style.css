@@ -9,49 +9,22 @@
   transition: color 150ms ease-in-out, border-color 150ms ease-in-out;
 }
 
-/* READY state - green with transparent underline */
 #custom-hyprwhspr.ready {
-  color: #98c379;              /* green */
+  color: #059669;            /* emerald-600 - darker green for better contrast */
   border-color: transparent;
 }
 
-/* RECORDING state - red with red underline */
 #custom-hyprwhspr.recording {
-  color: #e86671;              /* rose/red */
-  border-color: #e86671;
+  color: #dc2626;            /* red-600 - darker red for better contrast */
+  border-color: #dc2626;
 }
 
-/* ERROR state - amber with amber underline */
 #custom-hyprwhspr.error {
-  color: #e5c07b;              /* amber */
-  border-color: #e5c07b;
+  color: #d97706;            /* amber-600 - darker amber for better contrast */
+  border-color: #d97706;
 }
 
-/* Light mode support - higher contrast colors */
-@media (prefers-color-scheme: light) {
-  #custom-hyprwhspr.ready {
-    color: #059669;            /* emerald-600 - darker green for light mode */
-    border-color: transparent;
-  }
-  
-  #custom-hyprwhspr.recording {
-    color: #dc2626;            /* red-600 - darker red for light mode */
-    border-color: #dc2626;
-  }
-  
-  #custom-hyprwhspr.error {
-    color: #d97706;            /* amber-600 - darker amber for light mode */
-    border-color: #d97706;
-  }
-  
-  /* Hover effects for light mode */
-  #custom-hyprwhspr:hover {
-    filter: brightness(0.8);
-  }
-  
-  /* Focus outline for accessibility */
-  #custom-hyprwhspr:focus {
-    outline: 2px solid #3b82f6;  /* blue-500 focus outline */
-    outline-offset: 2px;
-  }
+/* Hover effects - Waybar doesn't support filter, so we use opacity instead */
+#custom-hyprwhspr:hover {
+  opacity: 0.8;
 }

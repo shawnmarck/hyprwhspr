@@ -2,7 +2,7 @@
   "custom/hyprwhspr": {
     "format": "{}",
     "exec": "/opt/hyprwhspr/config/hyprland/hyprwhspr-tray.sh status",
-    "interval": 2,
+    "interval": 1,
     "return-type": "json",
     "exec-on-event": true,
     "on-click": "/opt/hyprwhspr/config/hyprland/hyprwhspr-tray.sh toggle",

@@ -264,16 +264,7 @@ setup_hyprland_integration() {
         log_success "Tray script paths updated for local installation"
     fi
     
-    # Copy Waybar module
-    mkdir -p "$HOME/.config/waybar"
-    cp "$INSTALL_DIR/config/waybar/hyprwhspr-module.jsonc" "$HOME/.config/waybar/"
-    
-    # If we're installing from local directory, update the waybar module paths
-    if [ "$INSTALL_DIR" != "/opt/hyprwhspr" ]; then
-        log_info "Updating waybar module paths for local installation..."
-        sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$HOME/.config/waybar/hyprwhspr-module.jsonc"
-        log_success "Waybar module paths updated for local installation"
-    fi
+    # Note: Waybar module is now handled in setup_waybar_integration() to avoid conflicts
     
     log_success "Hyprland integration configured"
 }
@@ -309,6 +300,14 @@ setup_waybar_integration() {
 }
 EOF
             
+            # Verify the module file was created
+            if [ -f "$HOME/.config/waybar/hyprwhspr-module.jsonc" ]; then
+                log_success "Module file created: $HOME/.config/waybar/hyprwhspr-module.jsonc"
+            else
+                log_error "Failed to create module file"
+                return 1
+            fi
+            
             # Add import to the main waybar config (insert after modules-right array)
             if ! grep -q "hyprwhspr-module.jsonc" "$waybar_config"; then
                 # Find the line number where modules-right array ends and insert after it
@@ -318,9 +317,17 @@ EOF
                     local end_line=$(awk -v start="$line_num" 'NR>=start && /\]/ {print NR; exit}' "$waybar_config")
                     if [ -n "$end_line" ]; then
                         # Insert the include statement after the closing bracket
-                        sed -i "${end_line}a\  \"include\": [\"hyprwhspr-module.jsonc\"]," "$waybar_config"
+                        # Use a more robust sed approach
+                        awk -v end="$end_line" 'NR==end {print; print "  \"include\": [\"hyprwhspr-module.jsonc\"],"; next} {print}' "$waybar_config" > "$waybar_config.tmp" && mv "$waybar_config.tmp" "$waybar_config"
+                        log_info "Include statement added after line $end_line"
+                    else
+                        log_warning "Could not find closing bracket of modules-right array"
                     fi
+                else
+                    log_warning "Could not find modules-right array in waybar config"
                 fi
+            else
+                log_info "Include statement already present in waybar config"
             fi
             
             log_success "Waybar module added to config"
@@ -337,17 +344,17 @@ EOF
                         # Insert at the beginning of the file (after any existing @import statements)
                         if grep -q "^@import" "$waybar_style"; then
                             # If there are existing @import statements, add after the last one
-                            awk '/^@import/ { print; last_import = NR } !/^@import/ { if (last_import && NR == last_import + 1) { print "@import \"'"$INSTALL_DIR"'/config/waybar/hyprwhspr-style.css\";"; print ""; } print }' "$waybar_style" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
+                            awk '/^@import/ { print; last_import = NR } !/^@import/ { if (last_import && NR == last_import + 1) { print "@import \"hyprwhspr-style.css\";"; print ""; } print }' "$waybar_style" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
                         else
                             # If no existing @import statements, add at the very beginning
-                            echo -e "@import \"$INSTALL_DIR/config/waybar/hyprwhspr-style.css\";\n$(cat "$waybar_style")" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
+                            echo -e "@import \"hyprwhspr-style.css\";\n$(cat "$waybar_style")" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
                         fi
                         log_success "CSS import added to waybar style.css (at top)"
                     else
                         log_info "CSS import already present in waybar style.css"
                     fi
                 else
-                    log_warning "waybar style.css not found - you may need to manually add: @import \"$INSTALL_DIR/config/waybar/hyprwhspr-style.css\";"
+                    log_warning "waybar style.css not found - you may need to manually add: @import \"hyprwhspr-style.css\";"
                 fi
             fi
         else
