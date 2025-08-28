@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/40cb1837-550c-4e6e-8d61-07ea59898f12
 - **Optimized for Arch Linux / Omarchy** - Seamless integration with [Omarchy](https://omarchy.org/) / [Hyprland](https://github.com/hyprwm/Hyprland) & [Waybar](https://github.com/Alexays/Waybar)
 - **Whisper-powered** - State-of-the-art speech recognition via [OpenAI's Whisper](https://github.com/openai/whisper)
 - **NVIDIA GPU support** - Automatic CUDA detection and acceleration
-- **Word overrides** - Customize transcriptions and corrections
+- **Word overrides** - Customize transcriptions, prompt and corrections
 - **Run as user** - Runs in user space, just sudo once for the installer
 
 ## Quick start
