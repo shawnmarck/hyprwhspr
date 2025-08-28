@@ -35,6 +35,12 @@ https://github.com/user-attachments/assets/40cb1837-550c-4e6e-8d61-07ea59898f12
 
 ### Installation
 
+"Just works" with Omarchy.
+
+Any other setups may run into bumps.
+
+If stuck, create an issue or visit the thread in [Omarchy discord](https://discord.com/channels/1390012484194275541/1410373168765468774).
+
 ```bash
 # Clone the repository
 git clone https://github.com/goodroot/hyprwhspr.git
@@ -45,6 +51,7 @@ cd hyprwhisper
 ```
 
 **The installer will:**
+
 1. ✅ Install system dependencies (ydotool, etc.)
 2. ✅ Clone and build whisper.cpp (with CUDA if GPU available)
 3. ✅ Download base Whisper models
