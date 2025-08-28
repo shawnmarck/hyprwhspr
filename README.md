@@ -55,7 +55,7 @@ cd hyprwhisper
 1. ✅ Install system dependencies (ydotool, etc.)
 2. ✅ Clone and build whisper.cpp (with CUDA if GPU available)
 3. ✅ Download base Whisper models
-4. ✅ Set up systemd services for omarchy-whisper & ydotoolds
+4. ✅ Set up systemd services for hyprwhspr & ydotoolds
 5. ✅ Configure Hyprland integration
 6. ✅ Test everything works
 
