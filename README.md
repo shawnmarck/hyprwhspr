@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
- waybar integration | audio feedback | auto-paste | cpu or gpu | easy setup
+all local | waybar integration | audio feedback | auto-paste | cpu or gpu | easy setup
 </p>
 
  <p align="center">
