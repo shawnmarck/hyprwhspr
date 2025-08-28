@@ -256,7 +256,7 @@ Without a GPU, these models will be extremely slow (10-30 seconds per transcript
 
 ### Common issues
 
-**I heard the sound spoke, but don't see text!** 
+**I heard the sound, but don't see text!** 
 
 It's fairly common in Arch and other distros for the microphone to need to be plugged in and set each time you log in and out of your session, including during a restart. Within sound options, ensure that the microphone is indeed set. The sound utility will show feedback from the microphone if it is.
 
