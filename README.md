@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-    <b>Native speech-to-text for Arch / Omarchy</b> - Fast, accurate, easy and fully integrated.
+    <b>Native speech-to-text for Arch / Omarchy</b> - Fast, accurate and easy system-wide dictation.
 </p>
 
 <p align="center">
