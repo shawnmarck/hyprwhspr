@@ -64,9 +64,9 @@ cd hyprwhisper
 > Ensure your microphone of choice is available in audio settings.
 
 1. **Log out and back in** (for group permissions)
-2. **Press `Super+Alt+D`** to start dictation
+2. **Press `Super+Alt+D`** to start dictation - _beep!_
 3. **Speak naturally**
-4. **Press `Super+Alt+D`** again to stop dictation
+4. **Press `Super+Alt+D`** again to stop dictation - _boop!_
 5. **Bam!** Text appears in active buffer!
 
 ## Usage
