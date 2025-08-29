@@ -340,10 +340,6 @@ systemctl --user status hyprwhspr.service
 
 Gnome, KDE, etc might work. Untested. Try!
 
-## Updates
-
-Run `git pull` in `/opt/hyprwhspr/`
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.
