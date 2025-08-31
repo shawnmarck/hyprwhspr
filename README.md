@@ -41,11 +41,15 @@ Any other setups may run into bumps.
 
 If stuck, create an issue or visit the thread in [Omarchy discord](https://discord.com/channels/1390012484194275541/1410373168765468774).
 
+Available on the [AUR](https://aur.archlinux.org/packages/hyprwhspr):
+
 ```bash
 yay -S hyprwhspr
 # or
 paru -S hyprwhspr
 ```
+
+Or via GitHub:
 
 ```bash
 # Clone the repository
