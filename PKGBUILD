@@ -29,7 +29,7 @@ source=(
     "${pkgname}-${pkgver}.tar.gz::https://github.com/goodroot/${pkgname}/archive/v${pkgver}.tar.gz"
 )
 sha256sums=(
-    'SKIP'  # You'll need to generate this when you create the release
+    '9b5b66fdb777abf701343f162c7d2d739b374d8eed3c8c5a522a5e511423e687'
 )
 
 package() {
