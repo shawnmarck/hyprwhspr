@@ -42,6 +42,12 @@ Any other setups may run into bumps.
 If stuck, create an issue or visit the thread in [Omarchy discord](https://discord.com/channels/1390012484194275541/1410373168765468774).
 
 ```bash
+yay -S hyprwhspr
+# or
+paru -S hyprwhspr
+```
+
+```bash
 # Clone the repository
 git clone https://github.com/goodroot/hyprwhspr.git
 cd hyprwhisper
