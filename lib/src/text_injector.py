@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import time
+import threading
 import pyperclip
 from typing import Optional
 
@@ -40,6 +41,27 @@ class TextInjector:
         except Exception:
             return False
 
+    def _clear_clipboard(self):
+        """Clear the clipboard by setting it to empty content"""
+        try:
+            if shutil.which("wl-copy"):
+                subprocess.run(["wl-copy"], input=b"", check=True)
+            else:
+                pyperclip.copy("")
+        except Exception as e:
+            print(f"Warning: Could not clear clipboard: {e}")
+
+    def _schedule_clipboard_clear(self, delay: float):
+        """Schedule clipboard clearing after the specified delay"""
+        def clear_after_delay():
+            time.sleep(delay)
+            self._clear_clipboard()
+            print(f"📋 Clipboard cleared after {delay}s delay")
+        
+        # Run in a separate thread to avoid blocking
+        clear_thread = threading.Thread(target=clear_after_delay, daemon=True)
+        clear_thread.start()
+
     # ------------------------ Public API ------------------------
 
     def inject_text(self, text: str) -> bool:
@@ -61,10 +83,20 @@ class TextInjector:
 
         try:
             # Use strategy-based injection
+            success = False
             if self.ydotool_available:
-                return self._inject_via_clipboard_and_hotkey(processed_text)
+                success = self._inject_via_clipboard_and_hotkey(processed_text)
             else:
-                return self._inject_via_clipboard(processed_text)
+                success = self._inject_via_clipboard(processed_text)
+
+            # Check if clipboard clearing is enabled
+            if success and self.config_manager:
+                clipboard_behavior = self.config_manager.get_setting('clipboard_behavior', False)
+                if clipboard_behavior:
+                    clear_delay = self.config_manager.get_setting('clipboard_clear_delay', 5.0)
+                    self._schedule_clipboard_clear(clear_delay)
+
+            return success
 
         except Exception as e:
             print(f"Primary injection method failed: {e}")

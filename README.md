@@ -16,8 +16,6 @@ all local | waybar integration | audio feedback | auto-paste | cpu or gpu | easy
 
 https://github.com/user-attachments/assets/40cb1837-550c-4e6e-8d61-07ea59898f12
 
-
-
 ---
 
 - **Optimized for Arch Linux / Omarchy** - Seamless integration with [Omarchy](https://omarchy.org/) / [Hyprland](https://github.com/hyprwm/Hyprland) & [Waybar](https://github.com/Alexays/Waybar)
@@ -140,6 +138,23 @@ _Thanks for [the sounds](https://github.com/akx/Notifications), @akx!_
 **Custom sounds:**
 - **Supported formats**: `.ogg`, `.wav`, `.mp3`
 - **Fallback**: Uses defaults if custom files don't exist
+
+**Clipboard behavior** - control what happens to clipboard after text injection:
+
+```jsonc
+{
+    "clipboard_behavior": false,       // Boolean: true = clear after delay, false = keep (default: false)
+    "clipboard_clear_delay": 5.0      // Float: seconds to wait before clearing (default: 5.0, only used if clipboard_behavior is true)
+}
+```
+
+**Clipboard behavior options:**
+
+- **`clipboard_behavior: false`** (default) - Transcribed text stays on clipboard indefinitely
+- **`clipboard_behavior: true`** - Clipboard is automatically cleared after the specified delay
+- **`clipboard_clear_delay`** - How long to wait before clearing (only matters when `clipboard_behavior` is `true`)
+
+**Privacy note:** hyprwhspr never reads your existing clipboard content - it only clears the transcribed text after injection.
 
 ### Waybar integration
 
