@@ -142,8 +142,8 @@ class HyprWhsprApp:
             print(f"❌ Text injection failed: {e}")
 
     def run(self):
-        """Start the headless application"""
-        print("🚀 Starting HyprWhspr in headless mode...")
+        """Start the application"""
+        print("🚀 Starting HyprWhspr...")
 
         # Initialize whisper manager
         if not self.whisper_manager.initialize():
@@ -166,7 +166,7 @@ class HyprWhsprApp:
             print("\n🛑 Shutting down HyprWhspr...")
             self._cleanup()
         except Exception as e:
-            print(f"❌ Error in headless mode: {e}")
+            print(f"❌ Error in main loop: {e}")
             self._cleanup()
             return False
         
@@ -194,8 +194,8 @@ class HyprWhsprApp:
 
 def main():
     """Main entry point"""
-    print("🎤 HyprWhspr Headless Mode")
-    print("🚀 Starting HyprWhspr in background...")
+    print("🎤 HyprWhspr")
+    print("🚀 Starting HyprWhspr...")
     
     try:
         app = HyprWhsprApp()
