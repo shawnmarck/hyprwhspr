@@ -138,9 +138,9 @@ class WhisperManager:
     def _run_whisper(self, audio_file_path: str) -> str:
         """Run whisper.cpp on the given audio file"""
         try:
-            # Get capitalization prompt from config or use default
-            capitalization_prompt = self.config.get_setting(
-                'capitalization_prompt', 
+            # Get whisper prompt from config or use default
+            whisper_prompt = self.config.get_setting(
+                'whisper_prompt', 
                 'Transcribe with proper capitalization, including sentence beginnings, proper nouns, titles, and standard English capitalization rules.'
             )
             
@@ -152,7 +152,7 @@ class WhisperManager:
                 '--output-txt',
                 '--language', 'en',
                 '--threads', '4',
-                '--prompt', capitalization_prompt
+                '--prompt', whisper_prompt
             ]
             
             # Run the command

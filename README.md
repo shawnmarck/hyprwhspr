@@ -106,7 +106,7 @@ Edit `~/.config/hyprwhspr/config.json`:
 - **Large (best accuracy)**: `"large"` ⚠️ **GPU required**
 - **Large-v3 (latest)**: `"large-v3"` ⚠️ **GPU required**
 
-**Word overrides** - optional sound notifications:
+**Word overrides** - customize transcriptions:
 
 ```json
 {
@@ -116,6 +116,20 @@ Edit `~/.config/hyprwhspr/config.json`:
     }
 }
 ```
+
+**Whisper prompt** - customize transcription behavior:
+
+```json
+{
+    "whisper_prompt": "Transcribe with proper capitalization, including sentence beginnings, proper nouns, titles, and standard English capitalization rules."
+}
+```
+
+The prompt influences how Whisper interprets and transcribes your audio. Examples:
+
+- `"Transcribe as technical documentation with proper capitalization and technical terminology."`
+- `"Transcribe as casual conversation with natural speech patterns."`
+- `"Transcribe as formal business communication with professional language."`
 
 **Audio feedback** - optional sound notifications:
 
