@@ -126,7 +126,7 @@ Edit `~/.config/hyprwhspr/config.json`:
 ```
 
 The prompt influences how Whisper interprets and transcribes your audio. Examples:
-
+f
 - `"Transcribe as technical documentation with proper capitalization and technical terminology."`
 - `"Transcribe as casual conversation with natural speech patterns."`
 - `"Transcribe as formal business communication with professional language."`
@@ -148,6 +148,49 @@ The prompt influences how Whisper interprets and transcribes your audio. Example
 - **Stop recording**: `ping-down.ogg` (descending tone)
 
 _Thanks for [the sounds](https://github.com/akx/Notifications), @akx!_
+
+### Speech-to-text replacements
+
+Automatically converts spoken words to symbols and punctuation for natural dictation:
+
+**Punctuation:**
+
+- "period" → "."
+- "comma" → ","
+- "question mark" → "?"
+- "exclamation mark" → "!"
+- "colon" → ":"
+- "semicolon" → ";"
+
+**Symbols:**
+
+- "at symbol" → "@"
+- "hash" → "#"
+- "plus" → "+"
+- "equals" → "="
+- "dash" → "-"
+- "underscore" → "_"
+
+**Brackets:**
+
+- "open paren" → "("
+- "close paren" → ")"
+- "open bracket" → "["
+- "close bracket" → "]"
+- "open brace" → "{"
+- "close brace" → "}"
+
+**Special commands:**
+
+- "new line" → new line
+- "tab" → tab character
+
+**Example:**
+
+Say: "Hello comma how are you question mark"
+Get: "Hello, how are you?"
+
+_Thanks for the speech-to-text replacement ideas from [WhisperTux](https://github.com/cjams/whispertux), @cjams!_
 
 **Custom sounds:**
 - **Supported formats**: `.ogg`, `.wav`, `.mp3`

@@ -126,7 +126,7 @@ class TextInjector:
             r'\bexclamation mark\b': '!',
             r'\bcolon\b': ':',
             r'\bsemicolon\b': ';',
-            r'\btux enter\b': '\n',     # Special phrase for new line
+            r'\new line\b': '\n', 
             r'\btab\b': '\t',
             r'\bdash\b': '-',
             r'\bunderscore\b': '_',
