@@ -2,7 +2,7 @@
 
 pkgname=hyprwhspr
 pkgver=1.2.0
-pkgrel=1
+pkgrel=10
 pkgdesc="Native Whisper speech-to-text for Arch/Omarchy with Waybar integration"
 arch=('x86_64')
 url="https://github.com/goodroot/hyprwhspr"
@@ -36,7 +36,7 @@ source=(
     "${pkgname}-${pkgver}.tar.gz::https://github.com/goodroot/${pkgname}/archive/v${pkgver}.tar.gz"
 )
 sha256sums=(
-    '9b5b66fdb777abf701343f162c7d2d739b374d8eed3c8c5a522a5e511423e687'
+    'ac063f5c43da89e89b65230b5a7e70533019ae9274c118c37b62c636ef63cf92'
 )
 
 package() {
@@ -52,12 +52,38 @@ package() {
     chmod +x "${pkgdir}/opt/${pkgname}/scripts/"*.sh
     chmod +x "${pkgdir}/opt/${pkgname}/bin/hyprwhspr"
     
-    # Create Python virtual environment and install pip-only dependencies
+    # Fix the launcher script to use venv python directly
+    cat > "${pkgdir}/opt/${pkgname}/bin/hyprwhspr" << 'EOF'
+#!/bin/bash
+
+# HyprWhspr - Hyprland-optimized voice dictation application
+# Main launcher script
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Set environment variables
+export HYPRWHSPR_ROOT="$PACKAGE_ROOT"
+export PYTHONPATH="$PACKAGE_ROOT/lib:$PYTHONPATH"
+
+# Use virtual environment's python directly if it exists
+if [ -f "$PACKAGE_ROOT/venv/bin/python" ]; then
+    exec "$PACKAGE_ROOT/venv/bin/python" "$PACKAGE_ROOT/lib/main.py" "$@"
+else
+    # Fallback to system python
+    exec python3 "$PACKAGE_ROOT/lib/main.py" "$@"
+fi
+EOF
+    chmod +x "${pkgdir}/opt/${pkgname}/bin/hyprwhspr"
+    
+    # Create Python virtual environment and install ALL dependencies
     cd "${pkgdir}/opt/${pkgname}"
     python -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install sounddevice  # Only dependency not available in Arch repos
+    # Use the venv's python directly to avoid path issues
+    ./venv/bin/python -m pip install --upgrade pip
+    # Install all Python dependencies in venv for self-contained environment
+    ./venv/bin/python -m pip install numpy scipy pyperclip psutil rich json5 sounddevice evdev
     
     # Create symlink for easy access
     install -dm755 "${pkgdir}/usr/bin"
