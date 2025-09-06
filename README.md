@@ -185,11 +185,6 @@ Automatically converts spoken words to symbols and punctuation for natural dicta
 - "new line" → new line
 - "tab" → tab character
 
-**Example:**
-
-Say: "Hello comma how are you question mark"
-Get: "Hello, how are you?"
-
 _Thanks for the speech-to-text replacement ideas from [WhisperTux](https://github.com/cjams/whispertux), @cjams!_
 
 **Custom sounds:**
