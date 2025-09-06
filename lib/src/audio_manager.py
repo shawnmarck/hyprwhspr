@@ -44,14 +44,36 @@ class AudioManager:
             self.assets_dir = Path(__file__).parent.parent / "assets"
         
         # Start sound path resolution
-        if self.start_sound_path and Path(self.start_sound_path).exists():
-            self.start_sound = Path(self.start_sound_path)
+        if self.start_sound_path:
+            # Try the path as-is first (for absolute paths)
+            start_path = Path(self.start_sound_path)
+            if start_path.exists():
+                self.start_sound = start_path
+            else:
+                # Try relative to assets directory (for relative paths like "ping-up.ogg")
+                start_path = self.assets_dir / self.start_sound_path
+                if start_path.exists():
+                    self.start_sound = start_path
+                else:
+                    # Fall back to default
+                    self.start_sound = self.assets_dir / "ping-up.ogg"
         else:
             self.start_sound = self.assets_dir / "ping-up.ogg"
         
         # Stop sound path resolution
-        if self.stop_sound_path and Path(self.stop_sound_path).exists():
-            self.stop_sound = Path(self.stop_sound_path)
+        if self.stop_sound_path:
+            # Try the path as-is first (for absolute paths)
+            stop_path = Path(self.stop_sound_path)
+            if stop_path.exists():
+                self.stop_sound = stop_path
+            else:
+                # Try relative to assets directory (for relative paths like "ping-down.ogg")
+                stop_path = self.assets_dir / self.stop_sound_path
+                if stop_path.exists():
+                    self.stop_sound = stop_path
+                else:
+                    # Fall back to default
+                    self.stop_sound = self.assets_dir / "ping-down.ogg"
         else:
             self.stop_sound = self.assets_dir / "ping-down.ogg"
         
@@ -255,6 +277,7 @@ class AudioManager:
     def set_start_sound_path(self, sound_path: str):
         """Set custom path for start sound file"""
         if sound_path:
+            # Try the path as-is first (for absolute paths)
             path = Path(sound_path)
             if path.exists():
                 self.start_sound_path = str(path)
@@ -264,7 +287,17 @@ class AudioManager:
                     self.config_manager.set_setting('start_sound_path', self.start_sound_path)
                 print(f"Start sound path set to: {self.start_sound_path}")
             else:
-                print(f"Start sound file not found: {sound_path}")
+                # Try relative to assets directory (for relative paths like "ping-up.ogg")
+                path = self.assets_dir / sound_path
+                if path.exists():
+                    self.start_sound_path = sound_path  # Keep relative path in config
+                    self.start_sound = path
+                    self.start_sound_available = True
+                    if self.config_manager:
+                        self.config_manager.set_setting('start_sound_path', self.start_sound_path)
+                    print(f"Start sound path set to: {self.start_sound_path}")
+                else:
+                    print(f"Start sound file not found: {sound_path}")
         else:
             # Reset to default
             self.start_sound_path = None
@@ -277,6 +310,7 @@ class AudioManager:
     def set_stop_sound_path(self, sound_path: str):
         """Set custom path for stop sound file"""
         if sound_path:
+            # Try the path as-is first (for absolute paths)
             path = Path(sound_path)
             if path.exists():
                 self.stop_sound_path = str(path)
@@ -286,7 +320,17 @@ class AudioManager:
                     self.config_manager.set_setting('stop_sound_path', self.stop_sound_path)
                 print(f"Stop sound path set to: {self.stop_sound_path}")
             else:
-                print(f"Stop sound file not found: {sound_path}")
+                # Try relative to assets directory (for relative paths like "ping-down.ogg")
+                path = self.assets_dir / sound_path
+                if path.exists():
+                    self.stop_sound_path = sound_path  # Keep relative path in config
+                    self.stop_sound = path
+                    self.stop_sound_available = True
+                    if self.config_manager:
+                        self.config_manager.set_setting('stop_sound_path', self.stop_sound_path)
+                    print(f"Stop sound path set to: {self.stop_sound_path}")
+                else:
+                    print(f"Stop sound file not found: {sound_path}")
         else:
             # Reset to default
             self.stop_sound_path = None
