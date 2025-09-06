@@ -9,6 +9,13 @@ url="https://github.com/goodroot/hyprwhspr"
 license=('MIT')
 depends=(
     'python'
+    'python-evdev'
+    'python-numpy'
+    'python-scipy'
+    'python-pyperclip'
+    'python-psutil'
+    'python-rich'
+    'python-json5'
     'ydotool'
     'pipewire'
     'pipewire-alsa'
@@ -44,6 +51,13 @@ package() {
     # Make scripts executable
     chmod +x "${pkgdir}/opt/${pkgname}/scripts/"*.sh
     chmod +x "${pkgdir}/opt/${pkgname}/bin/hyprwhspr"
+    
+    # Create Python virtual environment and install pip-only dependencies
+    cd "${pkgdir}/opt/${pkgname}"
+    python -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install sounddevice  # Only dependency not available in Arch repos
     
     # Create symlink for easy access
     install -dm755 "${pkgdir}/usr/bin"

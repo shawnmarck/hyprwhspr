@@ -103,7 +103,7 @@ install_system_dependencies() {
     fi
 }
 
-# Function to setup Python virtual environment (like WhisperTux)
+# Function to setup Python virtual environment
 setup_python_environment() {
     log_info "Setting up Python virtual environment..."
     
@@ -675,11 +675,17 @@ main() {
     # Check if already installed
     if [ -d "$INSTALL_DIR" ]; then
         log_warning "HyprWhspr appears to be already installed at $INSTALL_DIR"
-        read -p "Do you want to continue with installation? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Installation cancelled"
-            exit 0
+        
+        # If running from AUR, skip interactive prompt
+        if [ "$HYPRWHSPR_AUR_INSTALL" = "1" ]; then
+            log_info "Running from AUR package - continuing with setup..."
+        else
+            read -p "Do you want to continue with installation? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Installation cancelled"
+                exit 0
+            fi
         fi
     fi
     
