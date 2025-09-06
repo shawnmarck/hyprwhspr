@@ -244,10 +244,20 @@ class TextInjector:
 
             time.sleep(0.12)  # settle so the target app sees the new clipboard
 
-            # 2) Press Ctrl+V
+            # 2) Press paste key combination based on config
             if self.ydotool_available:
-                # Linux evdev codes: 29 = LeftCtrl, 47 = 'V'
-                result = subprocess.run(['ydotool', 'key', '29:1', '47:1', '47:0', '29:0'], capture_output=True, timeout=5)
+                # Check shift_paste config: true = Ctrl+Shift+V, false = Ctrl+V
+                shift_paste = True  # Default to Ctrl+Shift+V
+                if self.config_manager:
+                    shift_paste = self.config_manager.get_setting('shift_paste', True)
+                
+                if shift_paste:
+                    # Ctrl+Shift+V: Linux evdev codes: 29 = LeftCtrl, 42 = LeftShift, 47 = 'V'
+                    result = subprocess.run(['ydotool', 'key', '29:1', '42:1', '47:1', '47:0', '42:0', '29:0'], capture_output=True, timeout=5)
+                else:
+                    # Ctrl+V: Linux evdev codes: 29 = LeftCtrl, 47 = 'V'
+                    result = subprocess.run(['ydotool', 'key', '29:1', '47:1', '47:0', '29:0'], capture_output=True, timeout=5)
+                
                 if result.returncode != 0:
                     stderr = (result.stderr or b"").decode("utf-8", "ignore")
                     print(f"  ydotool paste command failed: {stderr}")

@@ -208,6 +208,26 @@ _Thanks for the speech-to-text replacement ideas from [WhisperTux](https://githu
 
 **Privacy note:** hyprwhspr never reads your existing clipboard content - it only clears the transcribed text after injection.
 
+**Paste behavior** - control how text is pasted into applications:
+
+```jsonc
+{
+    "shift_paste": true    // Boolean: true = Ctrl+Shift+V (default), false = Ctrl+V
+}
+```
+
+**Paste behavior options:**
+
+- **`shift_paste: true`** (default) - Uses Ctrl+Shift+V for pasting
+  - ✅ Works in terminals (bash, zsh, fish, etc.)
+  - ✅ Probably works everywhere else
+
+- **`shift_paste: false`** - Uses traditional Ctrl+V for pasting
+  - ✅ Standard paste behavior
+  - ❌ May not work in some terminal applications
+
+**Why Ctrl+Shift+V by default?** Most Linux applications support Ctrl+Shift+V as an alternative paste command, making it work universally across both terminals and GUI applications.
+
 ### Waybar integration
 
 Add to your `~/.config/waybar/config`:
