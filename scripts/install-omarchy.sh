@@ -16,7 +16,7 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $*"; }
 
-# shorthand (for legacy calls in older script snippets)
+# Legacy shorthands used in a few places
 ok()   { log_success "$@"; }
 warn() { log_warning "$@"; }
 err()  { log_error "$@"; }
@@ -25,6 +25,7 @@ err()  { log_error "$@"; }
 PACKAGE_NAME="hyprwhspr"
 INSTALL_DIR="/opt/hyprwhspr"   # default for Omarchy/local
 SERVICE_NAME="hyprwhspr.service"
+YDOTOOL_UNIT="ydotoold.service"
 
 is_aur() { [[ "${HYPRWHSPR_AUR_INSTALL:-}" == "1" ]]; }
 if is_aur; then
@@ -36,12 +37,14 @@ VENV_DIR="$USER_BASE/venv"
 USER_WC_DIR="$USER_BASE/whisper.cpp"
 USER_MODELS_DIR="$USER_WC_DIR/models"
 USER_BIN_DIR="$HOME/.local/bin"
+LAUNCHER="$USER_BASE/run.sh"               # venv-aware launcher used by systemd unit
 
-# In local/Omarchy mode, keep legacy layout
+# In Omarchy mode, legacy layout under /opt
 if ! is_aur; then
   VENV_DIR="$INSTALL_DIR/venv"
   USER_WC_DIR="$INSTALL_DIR/whisper.cpp"
   USER_MODELS_DIR="$INSTALL_DIR/whisper.cpp/models"
+  LAUNCHER="$INSTALL_DIR/run.sh"
 fi
 
 # ----------------------- Detect actual user --------------------
@@ -161,7 +164,7 @@ setup_nvidia_support() {
         local gcc_major
         gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
         if [[ "$gcc_major" -ge 15 ]]; then
-          log_warning "GCC $gcc_major with NVCC is known to fail; consider:"
+          log_warning "GCC $gcc_major with NVCC can fail; consider:"
           log_warning "  yay -S gcc14 gcc14-libs"
           log_warning "  HYPRWHSPR_CUDA_HOST=/usr/bin/g++-14 hyprwhspr-setup"
         fi
@@ -275,33 +278,58 @@ download_models() {
 # ----------------------- Systemd (user) ------------------------
 setup_systemd_service() {
   log_info "Configuring systemd user services…"
+
+  # Create a venv-aware launcher the unit will ExecStart
+  mkdir -p "$(dirname "$LAUNCHER")"
+  cat > "$LAUNCHER" <<EOF
+#!/usr/bin/env bash
+set -e
+VENV="$VENV_DIR"
+APP_DIR="$INSTALL_DIR"
+# shellcheck disable=SC1091
+source "\$VENV/bin/activate"
+exec "\$APP_DIR/bin/hyprwhspr" "\$@"
+EOF
+  chmod +x "$LAUNCHER"
+
   mkdir -p "$USER_HOME/.config/systemd/user"
 
+  # Copy packaged (opinionated) units
   if [ -f "$INSTALL_DIR/config/systemd/$SERVICE_NAME" ]; then
     cp "$INSTALL_DIR/config/systemd/$SERVICE_NAME" "$USER_HOME/.config/systemd/user/" || true
   fi
-  if [ -f "$INSTALL_DIR/config/systemd/ydotoold.service" ]; then
-    cp "$INSTALL_DIR/config/systemd/ydotoold.service" "$USER_HOME/.config/systemd/user/" || true
+  if [ -f "$INSTALL_DIR/config/systemd/$YDOTOOL_UNIT" ]; then
+    cp "$INSTALL_DIR/config/systemd/$YDOTOOL_UNIT" "$USER_HOME/.config/systemd/user/" || true
   fi
 
-  # Rewrite /opt paths if running from AUR payload
+  # Always ensure the user unit ExecStart points at our launcher (AUR & Omarchy)
+  # and rewrite /opt path if coming from AUR payload.
+  if [ -f "$USER_HOME/.config/systemd/user/$SERVICE_NAME" ]; then
+    # Replace any ExecStart line with our launcher
+    sed -i 's|^ExecStart=.*|ExecStart='"$LAUNCHER"'|g' "$USER_HOME/.config/systemd/user/$SERVICE_NAME"
+    # Normalize WorkingDirectory
+    if grep -q '^WorkingDirectory=' "$USER_HOME/.config/systemd/user/$SERVICE_NAME"; then
+      sed -i 's|^WorkingDirectory=.*|WorkingDirectory='"$INSTALL_DIR"'|g' "$USER_HOME/.config/systemd/user/$SERVICE_NAME"
+    else
+      sed -i '/^\[Service\]/a WorkingDirectory='"$INSTALL_DIR" "$USER_HOME/.config/systemd/user/$SERVICE_NAME"
+    fi
+    # Standardize logs to journal
+    sed -i '/^\[Service\]/,$!b;/^\[Service\]/,/\[/{/StandardOutput=/d;/StandardError=/d}' "$USER_HOME/.config/systemd/user/$SERVICE_NAME"
+    sed -i '/^\[Service\]/a StandardOutput=journal\nStandardError=journal' "$USER_HOME/.config/systemd/user/$SERVICE_NAME"
+  fi
+
+  # Rewrite any remaining hardcoded /opt paths (e.g., in ydotoold unit)
   if [ "$INSTALL_DIR" != "/opt/hyprwhspr" ]; then
     sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/systemd/user/$SERVICE_NAME" 2>/dev/null || true
-    sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/systemd/user/ydotoold.service" 2>/dev/null || true
+    sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/systemd/user/$YDOTOOL_UNIT" 2>/dev/null || true
   fi
 
   systemctl --user daemon-reload
+  # As requested: same behavior as before → enable & start automatically in all modes
+  systemctl --user enable --now "$YDOTOOL_UNIT" 2>/dev/null || true
+  systemctl --user enable --now "$SERVICE_NAME"
 
-  if is_aur; then
-    log_info "AUR mode: not auto-enabling. Use:"
-    log_info "  systemctl --user enable --now ydotoold.service"
-    log_info "  systemctl --user enable --now hyprwhspr.service"
-  else
-    systemctl --user enable "$SERVICE_NAME" || true
-    [ -f "$USER_HOME/.config/systemd/user/ydotoold.service" ] && systemctl --user enable ydotoold.service || true
-  fi
-
-  log_success "Systemd user services ready"
+  log_success "Systemd user services enabled and started"
 }
 
 # ----------------------- Hyprland integration ------------------
@@ -321,7 +349,7 @@ setup_hyprland_integration() {
 # ----------------------- Waybar integration --------------------
 setup_waybar_integration() {
   log_info "Waybar integration…"
-  # In AUR mode, do not auto-edit unless explicitly asked
+  # AUR: only auto-edit when explicitly opted in
   if is_aur && [[ "${HYPRWHSPR_WAYBAR_AUTO:-}" != "1" ]]; then
     log_info "AUR mode: skipping auto Waybar edits (opt-in: HYPRWHSPR_WAYBAR_AUTO=1 hyprwhspr-setup)"
     return 0
@@ -527,7 +555,7 @@ main() {
   setup_nvidia_support
   setup_whisper
   download_models
-  setup_systemd_service
+  setup_systemd_service   # <— auto-enable & start (all modes)
   setup_hyprland_integration
   setup_user_config
   setup_permissions
@@ -535,12 +563,13 @@ main() {
   validate_installation
   verify_permissions_and_functionality
   test_installation
+  setup_waybar_integration
 
   log_success "hyprwhspr installation completed!"
-  log_info "Enable services:"
-  log_info "  systemctl --user enable --now ydotoold.service hyprwhspr.service"
+  log_info "Services active:"
+  log_info "  systemctl --user status $YDOTOOL_UNIT $SERVICE_NAME"
   log_info "Logs:"
-  log_info "  journalctl --user -u hyprwhspr.service"
+  log_info "  journalctl --user -u $SERVICE_NAME"
 }
 
 main "$@"
