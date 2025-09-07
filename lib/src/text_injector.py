@@ -1,5 +1,5 @@
 """
-Text injector for HyprWhspr
+Text injector for hyprwhspr
 Handles injecting transcribed text into other applications using paste strategy
 """
 
@@ -31,7 +31,7 @@ class TextInjector:
         self.ydotool_available = self._check_ydotool()
 
         if not self.ydotool_available:
-            print("⚠️  No typing backend found (ydotool). HyprWhspr requires ydotool for paste injection.")
+            print("⚠️  No typing backend found (ydotool). hyprwhspr requires ydotool for paste injection.")
 
     def _check_ydotool(self) -> bool:
         """Check if ydotool is available on the system"""

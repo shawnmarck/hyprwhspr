@@ -1,11 +1,11 @@
-# HyprWhspr Systemd Services
+# hyprwhspr Systemd Services
 
-This directory contains systemd user services for HyprWhspr integration with Hyprland.
+This directory contains systemd user services for hyprwhspr integration with Hyprland.
 
 ## Services
 
 ### hyprwhspr.service
-The main HyprWhspr voice dictation service. This service:
+The main hyprwhspr voice dictation service. This service:
 - Waits for the Hyprland Wayland session to be ready
 - Includes a 2-second startup delay for proper initialization
 - Automatically restarts on failure

@@ -1,14 +1,14 @@
 #!/bin/bash
-# Test script for HyprWhspr systemd services
+# Test script for hyprwhspr systemd services
 
 set -e
 
-echo "🧪 Testing HyprWhspr systemd services..."
+echo "🧪 Testing hyprwhspr systemd services..."
 
 # Check if services are loaded
 echo "📋 Checking service status..."
 
-echo "1. HyprWhspr service:"
+echo "1. hyprwhspr service:"
 if systemctl --user is-active hyprwhspr.service &> /dev/null; then
     echo "   ✅ Running"
 elif systemctl --user is-enabled hyprwhspr.service &> /dev/null; then
@@ -45,10 +45,10 @@ fi
 # Check if services can be started
 echo "5. Testing service start capability:"
 if systemctl --user start hyprwhspr.service 2>/dev/null; then
-    echo "   ✅ HyprWhspr can be started"
+    echo "   ✅ hyprwhspr can be started"
     systemctl --user stop hyprwhspr.service 2>/dev/null
 else
-    echo "   ❌ HyprWhspr cannot be started"
+    echo "   ❌ hyprwhspr cannot be started"
 fi
 
 if systemctl --user start ydotool.service 2>/dev/null; then

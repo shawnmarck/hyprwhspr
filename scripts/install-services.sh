@@ -1,9 +1,9 @@
 #!/bin/bash
-# HyprWhspr Systemd Services Installation Script
+# hyprwhspr Systemd Services Installation Script
 
 set -e
 
-echo "🚀 Installing HyprWhspr systemd services..."
+echo "🚀 Installing hyprwhspr systemd services..."
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

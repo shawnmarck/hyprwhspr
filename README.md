@@ -321,7 +321,7 @@ Without a GPU, these models will be extremely slow (10-30 seconds per transcript
 
 ## Architecture
 
-**HyprWhspr is designed as a system package:**
+**hyprwhspr is designed as a system package:**
 
 - **`/opt/hyprwhspr/`** - Main installation directory
 - **`/opt/hyprwhspr/lib/`** - Python application
@@ -331,7 +331,7 @@ Without a GPU, these models will be extremely slow (10-30 seconds per transcript
 
 ### Systemd integration
 
-**HyprWhspr uses systemd for reliable service management:**
+**hyprwhspr uses systemd for reliable service management:**
 
 - **`hyprwhspr.service`** - Main application service with auto-restart
 - **`ydotool.service`** - Input injection daemon service

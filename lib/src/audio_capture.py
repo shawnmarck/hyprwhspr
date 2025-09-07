@@ -1,5 +1,5 @@
 """
-Audio capture module for HyprWhspr
+Audio capture module for hyprwhspr
 Handles real-time audio capture for speech recognition
 """
 

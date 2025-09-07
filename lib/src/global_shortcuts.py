@@ -1,5 +1,5 @@
 """
-Global shortcuts handler for HyprWhspr
+Global shortcuts handler for hyprwhspr
 Manages system-wide keyboard shortcuts for dictation control
 """
 

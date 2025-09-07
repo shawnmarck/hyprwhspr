@@ -1,5 +1,5 @@
 """
-Whisper manager for HyprWhspr
+Whisper manager for hyprwhspr
 Handles Whisper model loading and speech-to-text processing
 """
 

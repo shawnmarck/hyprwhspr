@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# HyprWhspr - NVIDIA-optimized Whisper.cpp Build Script
+# hyprwhspr - NVIDIA-optimized Whisper.cpp Build Script
 # This script builds whisper.cpp with CUDA support for GPU acceleration
 
 set -e
@@ -132,7 +132,7 @@ show_usage() {
     echo "  --help     Show this help message"
     echo "  --test     Run GPU acceleration test after build"
     echo ""
-    echo "This script builds whisper.cpp with NVIDIA GPU support for HyprWhspr."
+    echo "This script builds whisper.cpp with NVIDIA GPU support for hyprwhspr."
     echo "Make sure you have:"
     echo "  - NVIDIA drivers installed"
     echo "  - CUDA toolkit installed"
@@ -162,7 +162,7 @@ main() {
         esac
     done
     
-    log_info "Starting NVIDIA-optimized whisper.cpp build for HyprWhspr..."
+    log_info "Starting NVIDIA-optimized whisper.cpp build for hyprwhspr..."
     
     # Check NVIDIA setup
     check_nvidia
@@ -177,7 +177,7 @@ main() {
     
     log_success "NVIDIA-optimized build completed!"
     log_info ""
-    log_info "Your HyprWhspr installation now has GPU acceleration!"
+    log_info "Your hyprwhspr installation now has GPU acceleration!"
     log_info "The service will automatically use GPU acceleration when available."
 }
 

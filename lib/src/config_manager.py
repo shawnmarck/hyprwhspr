@@ -1,5 +1,5 @@
 """
-Configuration manager for HyprWhspr
+Configuration manager for hyprwhspr
 Handles loading, saving, and managing application settings
 """
 
@@ -13,7 +13,7 @@ class ConfigManager:
     """Manages application configuration and settings"""
     
     def __init__(self):
-        # Default configuration values - minimal set for HyprWhspr
+        # Default configuration values - minimal set for hyprwhspr
         self.default_config = {
             'primary_shortcut': 'SUPER+ALT+D',
             'model': 'base',

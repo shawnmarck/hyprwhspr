@@ -1,5 +1,5 @@
 """
-Audio feedback manager for HyprWhspr
+Audio feedback manager for hyprwhspr
 Handles audio feedback for dictation start/stop events
 """
 

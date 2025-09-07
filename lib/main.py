@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HyprWhspr - Voice dictation application for Hyprland (Headless Mode)
+hyprwhspr - Voice dictation application for Hyprland (Headless Mode)
 Fast, reliable speech-to-text with instant text injection
 """
 
@@ -19,8 +19,8 @@ from text_injector import TextInjector
 from global_shortcuts import GlobalShortcuts
 from audio_manager import AudioManager
 
-class HyprWhsprApp:
-    """Main application class for HyprWhspr voice dictation (Headless Mode)"""
+class hyprwhsprApp:
+    """Main application class for hyprwhspr voice dictation (Headless Mode)"""
 
     def __init__(self):
         # Initialize core components
@@ -143,7 +143,7 @@ class HyprWhsprApp:
 
     def run(self):
         """Start the application"""
-        print("🚀 Starting HyprWhspr...")
+        print("🚀 Starting hyprwhspr...")
 
         # Initialize whisper manager
         if not self.whisper_manager.initialize():
@@ -151,7 +151,7 @@ class HyprWhsprApp:
             print("Run the build scripts first.")
             return False
 
-        print("✅ HyprWhspr initialized successfully")
+        print("✅ hyprwhspr initialized successfully")
         print("🎤 Listening for global shortcuts...")
         
         # Start global shortcuts
@@ -163,7 +163,7 @@ class HyprWhsprApp:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\n🛑 Shutting down HyprWhspr...")
+            print("\n🛑 Shutting down hyprwhspr...")
             self._cleanup()
         except Exception as e:
             print(f"❌ Error in main loop: {e}")
@@ -194,14 +194,14 @@ class HyprWhsprApp:
 
 def main():
     """Main entry point"""
-    print("🎤 HyprWhspr")
-    print("🚀 Starting HyprWhspr...")
+    print("🎤 hyprwhspr")
+    print("🚀 Starting hyprwhspr...")
     
     try:
-        app = HyprWhsprApp()
+        app = hyprwhsprApp()
         app.run()
     except KeyboardInterrupt:
-        print("\n🛑 Stopping HyprWhspr...")
+        print("\n🛑 Stopping hyprwhspr...")
         app._cleanup()
     except Exception as e:
         print(f"❌ Error: {e}")

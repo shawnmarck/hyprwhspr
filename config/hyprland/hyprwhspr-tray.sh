@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# HyprWhspr System Tray Status Script
-# Shows HyprWhspr status in the Hyprland system tray with JSON output
+# hyprwhspr System Tray Status Script
+# Shows hyprwhspr status in the Hyprland system tray with JSON output
 
 PACKAGE_ROOT="/opt/hyprwhspr"
 ICON_PATH="$PACKAGE_ROOT/share/assets/hyprwhspr.png"
 
-# Function to check if HyprWhspr is running
+# Function to check if hyprwhspr is running
 is_hyprwhspr_running() {
     systemctl --user is-active --quiet hyprwhspr.service
 }
@@ -42,9 +42,9 @@ can_start_recording() {
     return 0
 }
 
-# Function to check if HyprWhspr is currently recording
+# Function to check if hyprwhspr is currently recording
 is_hyprwhspr_recording() {
-    # Check if HyprWhspr is running
+    # Check if hyprwhspr is running
     if ! is_hyprwhspr_running; then
         return 1
     fi
@@ -87,7 +87,7 @@ is_hyprwhspr_recording() {
         fi
     fi
     
-    # Method 5: Check for PipeWire audio activity (HyprWhspr might use PipeWire client API)
+    # Method 5: Check for PipeWire audio activity (hyprwhspr might use PipeWire client API)
     if pactl list short sources 2>/dev/null | grep -q "alsa_input.*RUNNING\|pipewire.*RUNNING" 2>/dev/null; then
         return 0
     fi
@@ -113,20 +113,20 @@ show_notification() {
     fi
 }
 
-# Function to toggle HyprWhspr
+# Function to toggle hyprwhspr
 toggle_hyprwhspr() {
     if is_hyprwhspr_running; then
-        echo "Stopping HyprWhspr..."
+        echo "Stopping hyprwhspr..."
         systemctl --user stop hyprwhspr.service
-        show_notification "HyprWhspr" "Stopped" "low"
+        show_notification "hyprwhspr" "Stopped" "low"
     else
         if can_start_recording; then
-            echo "Starting HyprWhspr..."
+            echo "Starting hyprwhspr..."
             systemctl --user start hyprwhspr.service
-            show_notification "HyprWhspr" "Started" "normal"
+            show_notification "hyprwhspr" "Started" "normal"
         else
-            echo "Cannot start HyprWhspr - no microphone available"
-            show_notification "HyprWhspr" "No microphone available" "critical"
+            echo "Cannot start hyprwhspr - no microphone available"
+            show_notification "hyprwhspr" "No microphone available" "critical"
             return 1
         fi
     fi
@@ -139,9 +139,9 @@ start_ydotoold() {
         systemctl --user start ydotool.service
         sleep 1
         if is_ydotoold_running; then
-            show_notification "HyprWhspr" "ydotoold started" "low"
+            show_notification "hyprwhspr" "ydotoold started" "low"
         else
-            show_notification "HyprWhspr" "Failed to start ydotoold" "critical"
+            show_notification "hyprwhspr" "Failed to start ydotoold" "critical"
         fi
     fi
 }
@@ -177,22 +177,22 @@ emit_json() {
         "recording")
             icon="󰍬"
             text="$icon REC"
-            tooltip="HyprWhspr: Currently recording\n\nLeft-click: Stop recording\nRight-click: Restart\nMiddle-click: Restart"
+            tooltip="hyprwhspr: Currently recording\n\nLeft-click: Stop recording\nRight-click: Restart\nMiddle-click: Restart"
             ;;
         "error")
             icon="󰆉"
             text="$icon ERR"
-            tooltip="HyprWhspr: Issue detected\n\nLeft-click: Toggle service\nRight-click: Start service\nMiddle-click: Restart service"
+            tooltip="hyprwhspr: Issue detected\n\nLeft-click: Toggle service\nRight-click: Start service\nMiddle-click: Restart service"
             ;;
         "ready")
             icon="󰍬"
             text="$icon RDY"
-            tooltip="HyprWhspr: Ready to record\n\nLeft-click: Start recording\nRight-click: Start service\nMiddle-click: Restart service"
+            tooltip="hyprwhspr: Ready to record\n\nLeft-click: Start recording\nRight-click: Start service\nMiddle-click: Restart service"
             ;;
         *)
             icon="󰆉"
             text="$icon"
-            tooltip="HyprWhspr: Unknown state\n\nLeft-click: Toggle service\nRight-click: Start service\nMiddle-click: Restart service"
+            tooltip="hyprwhspr: Unknown state\n\nLeft-click: Toggle service\nRight-click: Start service\nMiddle-click: Restart service"
             state="error"
             ;;
     esac
@@ -240,9 +240,9 @@ case "${1:-status}" in
         if ! is_hyprwhspr_running; then
             if can_start_recording; then
                 systemctl --user start hyprwhspr.service
-                show_notification "HyprWhspr" "Started" "normal"
+                show_notification "hyprwhspr" "Started" "normal"
             else
-                show_notification "HyprWhspr" "No microphone available" "critical"
+                show_notification "hyprwhspr" "No microphone available" "critical"
             fi
         fi
         emit_json "$(get_current_state)"
@@ -250,7 +250,7 @@ case "${1:-status}" in
     "stop")
         if is_hyprwhspr_running; then
             systemctl --user stop hyprwhspr.service
-            show_notification "HyprWhspr" "Stopped" "low"
+            show_notification "hyprwhspr" "Stopped" "low"
         fi
         emit_json "$(get_current_state)"
         ;;
@@ -260,7 +260,7 @@ case "${1:-status}" in
         ;;
     "restart")
         systemctl --user restart hyprwhspr.service
-        show_notification "HyprWhspr" "Restarted" "normal"
+        show_notification "hyprwhspr" "Restarted" "normal"
         emit_json "$(get_current_state)"
         ;;
     "health")
@@ -277,11 +277,11 @@ case "${1:-status}" in
         echo ""
         echo "Commands:"
         echo "  status    - Show current status (JSON output)"
-        echo "  toggle    - Toggle HyprWhspr on/off"
-        echo "  start     - Start HyprWhspr"
-        echo "  stop      - Stop HyprWhspr"
+        echo "  toggle    - Toggle hyprwhspr on/off"
+        echo "  start     - Start hyprwhspr"
+        echo "  stop      - Stop hyprwhspr"
         echo "  ydotoold  - Start ydotoold daemon"
-        echo "  restart   - Restart HyprWhspr"
+        echo "  restart   - Restart hyprwhspr"
         echo "  health    - Check service health and recover if needed"
         ;;
 esac

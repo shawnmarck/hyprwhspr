@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# HyprWhspr - uinput Permissions Fix
+# hyprwhspr - uinput Permissions Fix
 # This script creates the necessary udev rule and adds the user to required groups
 # for ydotool to work without root privileges
 
@@ -30,7 +30,7 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-echo "HyprWhspr - uinput Permissions Fix"
+echo "hyprwhspr - uinput Permissions Fix"
 echo "=================================="
 echo ""
 
@@ -154,7 +154,7 @@ echo ""
 echo "Next steps:"
 echo "1. Log out and back in (or reboot) for group changes to take effect"
 echo "2. Test ydotool: ydotool help"
-echo "3. If ydotool works, HyprWhspr should work without permission issues"
+echo "3. If ydotool works, hyprwhspr should work without permission issues"
 echo ""
 echo "If you still have issues after logging back in, run:"
 echo "  sudo udevadm control --reload-rules"

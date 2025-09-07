@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# HyprWhspr - Hyprland-optimized voice dictation application
+# hyprwhspr - Hyprland-optimized voice dictation application
 # Main launcher script
 
 # Get the directory where this script is located
