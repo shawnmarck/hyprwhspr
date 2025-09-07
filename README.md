@@ -48,6 +48,27 @@ cd hyprwhisper
 ./scripts/install-omarchy.sh
 ```
 
+Or AUR:
+
+```bash
+# Install from AUR (pick one helper)
+yay -S hyprwhspr
+# or
+paru -S hyprwhspr
+# or (no helper)
+git clone ssh://aur.archlinux.org/hyprwhspr.git && cd hyprwhspr
+makepkg -si
+```
+
+Then:  
+
+```bash
+hyprwhspr-setup
+
+systemctl --user enable --now ydotoold.service
+systemctl --user enable --now hyprwhspr.service
+```
+
 **The installer will:**
 
 1. ✅ Install system dependencies (ydotool, etc.)

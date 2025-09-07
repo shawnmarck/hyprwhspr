@@ -111,44 +111,65 @@ ensure_user_bin_symlink() {
 
 setup_whisper() {
   log_info "Setting up whisper.cpp…"
-  ensure_path_contains_local_bin
 
+  # Choose build location (AUR → user dir; Omarchy → INSTALL_DIR)
   if is_aur; then
-    if have_system_whisper; then
-      log_success "Using system whisper-cli: $(command -v whisper-cli)"
-      return 0
-    fi
     mkdir -p "$USER_WC_DIR"
     cd "$USER_WC_DIR"
   else
-    mkdir -p "$USER_WC_DIR"
-    cd "$USER_WC_DIR"
+    mkdir -p "$INSTALL_DIR/whisper.cpp"
+    cd "$INSTALL_DIR/whisper.cpp"
   fi
 
+  # Clone or update
   if [ ! -d ".git" ]; then
     log_info "Cloning whisper.cpp → $PWD"
-    git clone https://github.com/ggml-org/whisper.cpp.git .
+    git clone https://github.com/ggml-org/whisper.cpp.git . 
   else
-    log_info "Updating whisper.cpp"
     git pull --ff-only || true
   fi
 
-  local use_cuda=false
-  if command -v nvidia-smi &>/dev/null && command -v nvcc &>/dev/null; then
-    use_cuda=true; log_info "CUDA detected: enabling GPU build"
+  # CUDA availability (PATH may have been set by setup_nvidia_support)
+  use_cuda=false
+  if command -v nvcc >/dev/null 2>&1 || [ -x /opt/cuda/bin/nvcc ]; then
+    use_cuda=true
+    export PATH="/opt/cuda/bin:$PATH"
+    log_info "CUDA detected: building with GPU support"
   else
     log_info "Building CPU-only"
   fi
 
-  cmake -B build
-  $use_cuda && cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+  # First build (or rebuild) with appropriate flags
+  cmake -B build -DGGML_CUDA=$([ "$use_cuda" = true ] && echo ON || echo OFF) -DCMAKE_BUILD_TYPE=Release
   cmake --build build -j --config Release
 
-  [ -x "build/bin/whisper-cli" ] || { log_error "whisper-cli build failed"; exit 1; }
-  $use_cuda && ldd build/bin/whisper-cli | grep -qi cuda && log_success "Built with CUDA"
+  # Ensure binary exists
+  if [ ! -x "build/bin/whisper-cli" ]; then
+    err "whisper.cpp build failed"
+    exit 1
+  fi
 
-  ensure_user_bin_symlink
-  log_success "whisper.cpp ready"
+  # If CUDA is available but the binary wasn't linked against CUDA, force a clean CUDA rebuild
+  if [ "$use_cuda" = true ] && ! ldd build/bin/whisper-cli | grep -qi cuda; then
+    log_info "whisper-cli not CUDA-linked; rebuilding with CUDA…"
+    rm -rf build
+    cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j --config Release
+    if ! ldd build/bin/whisper-cli | grep -qi cuda; then
+      warn "CUDA requested but not linked; falling back to CPU binary"
+    else
+      ok "CUDA build complete"
+    fi
+  fi
+
+  # Link into ~/.local/bin for PATH
+  mkdir -p "$USER_BIN_DIR"
+  if [ -x "build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
+    ln -s "$(pwd)/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
+    log_info "Linked whisper-cli → $USER_BIN_DIR/whisper-cli"
+  fi
+
+  ok "whisper.cpp ready"
 }
 
 # ----------------------- Models --------------------------------
@@ -312,16 +333,25 @@ RULE
 # ----------------------- NVIDIA support -----------------------
 setup_nvidia_support() {
   log_info "GPU check…"
-  if command -v nvidia-smi &>/dev/null; then
+  if command -v nvidia-smi >/dev/null 2>&1; then
     log_success "NVIDIA GPU detected"
-    if command -v nvcc &>/dev/null; then
+    # Detect CUDA toolkit (handle PATH not yet updated)
+    if command -v nvcc >/dev/null 2>&1 || [ -x /opt/cuda/bin/nvcc ]; then
+      export PATH="/opt/cuda/bin:$PATH"
       log_success "CUDA toolkit present"
     else
       log_warning "CUDA toolkit not found; installing…"
-      sudo pacman -S --needed --noconfirm cuda
+      sudo pacman -S --needed --noconfirm cuda || true
+      # After install, prefer the canonical location even if shell rc hasn't run
+      if [ -x /opt/cuda/bin/nvcc ]; then
+        export PATH="/opt/cuda/bin:$PATH"
+        log_success "CUDA installed (nvcc available)"
+      else
+        log_warning "nvcc still not visible; continuing with CPU build"
+      fi
     fi
   else
-    log_info "No NVIDIA GPU (CPU mode)"
+    log_info "No NVIDIA GPU detected (CPU mode)"
   fi
 }
 
@@ -426,13 +456,13 @@ main() {
 
   install_system_dependencies
   setup_python_environment
+  setup_nvidia_support
   setup_whisper
   download_models
   setup_systemd_service
   setup_hyprland_integration
   setup_user_config
   setup_permissions
-  setup_nvidia_support
   setup_audio_devices
   validate_installation
   verify_permissions_and_functionality
