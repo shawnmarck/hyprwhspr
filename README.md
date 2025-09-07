@@ -48,28 +48,7 @@ cd hyprwhisper
 ./scripts/install-omarchy.sh
 ```
 
-Or AUR:
-
-```bash
-# Install from AUR (pick one helper)
-yay -S hyprwhspr
-# or
-paru -S hyprwhspr
-# or (no helper)
-git clone ssh://aur.archlinux.org/hyprwhspr.git && cd hyprwhspr
-makepkg -si
-```
-
-Then:  
-
-```bash
-hyprwhspr-setup
-# To auto-edit Waybar (opt-in), run:
-# HYPRWHSPR_WAYBAR_AUTO=1 hyprwhspr-setup
-
-systemctl --user enable --now ydotoold.service
-systemctl --user enable --now hyprwhspr.service
-```
+* AUR is wip - please use script!
 
 **The installer will:**
 
