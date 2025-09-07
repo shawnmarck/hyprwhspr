@@ -1,11 +1,11 @@
 #!/bin/bash
 # hyprwhspr Omarchy/Arch Installation Script
-# Works in two modes:
-#   • Omarchy/local: INSTALL_DIR=/opt/hyprwhspr, venv & whisper.cpp under /opt (your original behavior)
-#   • AUR: INSTALL_DIR=/usr/lib/hyprwhspr (read-only). venv & whisper.cpp live in user-space:
+# Modes:
+#   • Omarchy/local: INSTALL_DIR=/opt/hyprwhspr, venv & whisper.cpp under /opt
+#   • AUR:           INSTALL_DIR=/usr/lib/hyprwhspr (read-only)
 #       VENV_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprwhspr/venv"
 #       USER_WC_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprwhspr/whisper.cpp"
-#   Mode is detected by HYPRWHSPR_AUR_INSTALL=1 (set by /usr/bin/hyprwhspr-setup)
+#   AUR mode is detected by HYPRWHSPR_AUR_INSTALL=1 (set by /usr/bin/hyprwhspr-setup)
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $*"; }
 
-# Short aliases (to match existing calls in the script)
+# shorthand (for legacy calls in older script snippets)
 ok()   { log_success "$@"; }
 warn() { log_warning "$@"; }
 err()  { log_error "$@"; }
@@ -46,8 +46,10 @@ fi
 
 # ----------------------- Detect actual user --------------------
 if [ "$EUID" -eq 0 ]; then
-  if [ -n "${SUDO_USER:-}" ]; then ACTUAL_USER="$SUDO_USER"
-  else ACTUAL_USER=$(stat -c '%U' /home 2>/dev/null | head -1 || echo "root")
+  if [ -n "${SUDO_USER:-}" ]; then
+    ACTUAL_USER="$SUDO_USER"
+  else
+    ACTUAL_USER=$(stat -c '%U' /home 2>/dev/null | head -1 || echo "root")
   fi
 else
   ACTUAL_USER="$USER"
@@ -67,10 +69,32 @@ log_info "USER_WC_DIR=$USER_WC_DIR"
 have_system_whisper() { command -v whisper-cli >/dev/null 2>&1; }
 
 ensure_path_contains_local_bin() {
-  case ":$PATH:" in
-    *":$USER_BIN_DIR:"*) : ;;
-    *) export PATH="$USER_BIN_DIR:$PATH" ;;
-  esac
+  case ":$PATH:" in *":$USER_BIN_DIR:"*) ;; *) export PATH="$USER_BIN_DIR:$PATH" ;; esac
+}
+
+detect_cuda_host_compiler() {
+  # Allow explicit override
+  if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
+    echo "$HYPRWHSPR_CUDA_HOST"; return 0
+  fi
+  local gcc_major
+  gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
+  # If GCC >= 15, prefer gcc14 if present (nvcc header compat)
+  if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
+    echo "/usr/bin/g++-14"; return 0
+  fi
+  if command -v g++ >/dev/null 2>&1; then
+    command -v g++; return 0
+  fi
+  echo ""
+}
+
+ensure_user_bin_symlink() {
+  mkdir -p "$USER_BIN_DIR"
+  if [ -x "$USER_WC_DIR/build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
+    ln -s "$USER_WC_DIR/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
+    log_info "Linked whisper-cli → $USER_BIN_DIR/whisper-cli"
+  fi
 }
 
 # ----------------------- Install dependencies ------------------
@@ -104,42 +128,53 @@ setup_python_environment() {
   log_success "Python dependencies installed"
 }
 
+# ----------------------- NVIDIA support -----------------------
+setup_nvidia_support() {
+  log_info "GPU check…"
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    log_success "NVIDIA GPU detected"
+    # nvcc path (prefer canonical CUDA location)
+    if [ -x /opt/cuda/bin/nvcc ] || command -v nvcc >/dev/null 2>&1; then
+      export PATH="/opt/cuda/bin:$PATH"
+      export CUDACXX="${CUDACXX:-/opt/cuda/bin/nvcc}"
+      log_success "CUDA toolkit present"
+    else
+      log_warning "CUDA toolkit not found; installing…"
+      sudo pacman -S --needed --noconfirm cuda || true
+      if [ -x /opt/cuda/bin/nvcc ]; then
+        export PATH="/opt/cuda/bin:$PATH"
+        export CUDACXX="/opt/cuda/bin/nvcc"
+        log_success "CUDA installed"
+      else
+        log_warning "nvcc still not visible; will build CPU-only"
+        return 0
+      fi
+    fi
+
+    # Choose a host compiler for NVCC
+    local hostc
+    hostc="$(detect_cuda_host_compiler)"
+    if [[ -n "$hostc" ]]; then
+      export CUDAHOSTCXX="$hostc"
+      log_info "CUDA host compiler: $CUDAHOSTCXX"
+      if [[ "$hostc" == "/usr/bin/g++" ]]; then
+        local gcc_major
+        gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
+        if [[ "$gcc_major" -ge 15 ]]; then
+          log_warning "GCC $gcc_major with NVCC is known to fail; consider:"
+          log_warning "  yay -S gcc14 gcc14-libs"
+          log_warning "  HYPRWHSPR_CUDA_HOST=/usr/bin/g++-14 hyprwhspr-setup"
+        fi
+      fi
+    else
+      log_warning "No suitable host compiler found; will build CPU-only"
+    fi
+  else
+    log_info "No NVIDIA GPU detected (CPU mode)"
+  fi
+}
+
 # ----------------------- whisper.cpp build ---------------------
-detect_cuda_host_compiler() {
-  # Allow user override (e.g., HYPRWHSPR_CUDA_HOST=/usr/bin/clang++)
-  if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
-    echo "$HYPRWHSPR_CUDA_HOST"
-    return 0
-  fi
-
-  # Parse system GCC major
-  local gcc_major
-  gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
-
-  # If GCC >= 15, nvcc may choke on headers → prefer g++-14 if available
-  if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
-    echo "/usr/bin/g++-14"
-    return 0
-  fi
-
-  # Otherwise try default g++
-  if command -v g++ >/dev/null 2>&1; then
-    echo "$(command -v g++)"
-    return 0
-  fi
-
-  # Last resort: none
-  echo ""
-}
-
-ensure_user_bin_symlink() {
-  mkdir -p "$USER_BIN_DIR"
-  if [ -x "$USER_WC_DIR/build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
-    ln -s "$USER_WC_DIR/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
-    log_info "Linked whisper-cli → $USER_BIN_DIR/whisper-cli"
-  fi
-}
-
 setup_whisper() {
   log_info "Setting up whisper.cpp…"
 
@@ -160,20 +195,16 @@ setup_whisper() {
     git pull --ff-only || true
   fi
 
-  # ---------- CUDA availability & host compiler ----------
-  # Prefer env provided by setup_nvidia_support(), but self-heal if unset
+  # ---------- CUDA availability ----------
   if [ -z "${CUDACXX:-}" ] && [ -x /opt/cuda/bin/nvcc ]; then
     export CUDACXX="/opt/cuda/bin/nvcc"
     export PATH="/opt/cuda/bin:$PATH"
   fi
 
-  # Decide on CUDA usage
-  use_cuda=false
+  local use_cuda=false
   if [[ -n "${CUDACXX:-}" && -x "${CUDACXX}" ]]; then
-    # Ensure a compatible host compiler is selected
     if [ -z "${CUDAHOSTCXX:-}" ]; then
-      CUDAHOSTCXX="$(detect_cuda_host_compiler)"
-      export CUDAHOSTCXX
+      CUDAHOSTCXX="$(detect_cuda_host_compiler)"; export CUDAHOSTCXX
     fi
     if [[ -n "${CUDAHOSTCXX:-}" && -x "${CUDAHOSTCXX}" ]]; then
       use_cuda=true
@@ -223,11 +254,7 @@ setup_whisper() {
 
   # ---------- link into ~/.local/bin for PATH ----------
   ensure_path_contains_local_bin
-  mkdir -p "$USER_BIN_DIR"
-  if [ -x "build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
-    ln -s "$(pwd)/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
-    log_info "Linked whisper-cli → $USER_BIN_DIR/whisper-cli"
-  fi
+  ensure_user_bin_symlink
 
   ok "whisper.cpp ready"
 }
@@ -250,7 +277,6 @@ setup_systemd_service() {
   log_info "Configuring systemd user services…"
   mkdir -p "$USER_HOME/.config/systemd/user"
 
-  # Copy your opinionated units if bundled
   if [ -f "$INSTALL_DIR/config/systemd/$SERVICE_NAME" ]; then
     cp "$INSTALL_DIR/config/systemd/$SERVICE_NAME" "$USER_HOME/.config/systemd/user/" || true
   fi
@@ -258,7 +284,7 @@ setup_systemd_service() {
     cp "$INSTALL_DIR/config/systemd/ydotoold.service" "$USER_HOME/.config/systemd/user/" || true
   fi
 
-  # Replace /opt paths if running from AUR payload
+  # Rewrite /opt paths if running from AUR payload
   if [ "$INSTALL_DIR" != "/opt/hyprwhspr" ]; then
     sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/systemd/user/$SERVICE_NAME" 2>/dev/null || true
     sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/systemd/user/ydotoold.service" 2>/dev/null || true
@@ -285,7 +311,9 @@ setup_hyprland_integration() {
   if [ -f "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh" ]; then
     cp "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh" "$USER_HOME/.config/hypr/scripts/"
     chmod +x "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh"
-    [ "$INSTALL_DIR" != "/opt/hyprwhspr" ] && sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh"
+    if [ "$INSTALL_DIR" != "/opt/hyprwhspr" ]; then
+      sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh"
+    fi
   fi
   log_success "Hyprland integration configured"
 }
@@ -300,10 +328,13 @@ setup_waybar_integration() {
   fi
 
   local waybar_config="$USER_HOME/.config/waybar/config.jsonc"
-  [ -f "$waybar_config" ] || { log_warning "Waybar config not found ($waybar_config)"; return 0; }
+  if [ ! -f "$waybar_config" ]; then
+    log_warning "Waybar config not found ($waybar_config)"
+    return 0
+  fi
 
   mkdir -p "$USER_HOME/.config/waybar"
-  cat > "$USER_HOME/.config/waybar/hyprwhspr-module.jsonc" << EOF
+  cat > "$USER_HOME/.config/waybar/hyprwhspr-module.jsonc" <<EOF
 {
   "custom/hyprwhspr": {
     "format": "{}",
@@ -324,7 +355,9 @@ EOF
     line_num=$(grep -n '"modules-right"' "$waybar_config" | head -1 | cut -d: -f1 || true)
     if [ -n "$line_num" ]; then
       end_line=$(awk -v start="$line_num" 'NR>=start && /\]/ {print NR; exit}' "$waybar_config")
-      [ -n "$end_line" ] && awk -v end="$end_line" 'NR==end {print; print "  \"include\": [\"hyprwhspr-module.jsonc\"],"; next} {print}' "$waybar_config" > "$waybar_config.tmp" && mv "$waybar_config.tmp" "$waybar_config"
+      if [ -n "$end_line" ]; then
+        awk -v end="$end_line" 'NR==end {print; print "  \"include\": [\"hyprwhspr-module.jsonc\"],"; next} {print}' "$waybar_config" > "$waybar_config.tmp" && mv "$waybar_config.tmp" "$waybar_config"
+      fi
     fi
   fi
 
@@ -348,7 +381,7 @@ setup_user_config() {
   log_info "User config…"
   mkdir -p "$USER_CONFIG_DIR"
   if [ ! -f "$USER_CONFIG_DIR/config.json" ]; then
-    cat > "$USER_CONFIG_DIR/config.json" << 'CFG'
+    cat > "$USER_CONFIG_DIR/config.json" <<'CFG'
 {
   "primary_shortcut": "SUPER+ALT+D",
   "model": "base.en",
@@ -377,7 +410,7 @@ setup_permissions() {
 
   if [ ! -f "/etc/udev/rules.d/99-uinput.rules" ]; then
     log_info "Creating /etc/udev/rules.d/99-uinput.rules"
-    sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null << 'RULE'
+    sudo tee /etc/udev/rules.d/99-uinput.rules > /dev/null <<'RULE'
 KERNEL=="uinput", GROUP="input", MODE="0660"
 RULE
     sudo udevadm control --reload-rules
@@ -388,50 +421,6 @@ RULE
 
   [ -e "/dev/uinput" ] || { log_info "Loading uinput module"; sudo modprobe uinput || true; }
   log_warning "You may need to log out/in for new group memberships to apply"
-}
-
-# ----------------------- NVIDIA support -----------------------
-setup_nvidia_support() {
-  log_info "GPU check…"
-  if command -v nvidia-smi >/dev/null 2>&1; then
-    log_success "NVIDIA GPU detected"
-    # nvcc path (prefer canonical CUDA location)
-    if [ -x /opt/cuda/bin/nvcc ] || command -v nvcc >/dev/null 2>&1; then
-      export PATH="/opt/cuda/bin:$PATH"
-      export CUDACXX="/opt/cuda/bin/nvcc"
-      log_success "CUDA toolkit present"
-    else
-      log_warning "CUDA toolkit not found; installing…"
-      sudo pacman -S --needed --noconfirm cuda || true
-      if [ -x /opt/cuda/bin/nvcc ]; then
-        export PATH="/opt/cuda/bin:$PATH"
-        export CUDACXX="/opt/cuda/bin/nvcc"
-        log_success "CUDA installed"
-      else
-        log_warning "nvcc still not visible; will build CPU-only"
-        return 0
-      fi
-    endfi
-
-    # Choose a host compiler for NVCC
-    CUDA_HOST_COMPILER="$(detect_cuda_host_compiler)"
-    if [[ -n "$CUDA_HOST_COMPILER" ]]; then
-      export CUDAHOSTCXX="$CUDA_HOST_COMPILER"
-      log_info "CUDA host compiler: $CUDA_HOST_COMPILER"
-      if [[ "$CUDA_HOST_COMPILER" == "/usr/bin/g++" ]]; then
-        local gcc_major
-        gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
-        if [[ "$gcc_major" -ge 15 ]]; then
-          log_warning "GCC $gcc_major with NVCC is known to fail; install gcc14 and re-run:"
-          log_warning "  yay -S gcc14 gcc14-libs ; HYPRWHSPR_CUDA_HOST=/usr/bin/g++-14 hyprwhspr-setup"
-        fi
-      fi
-    else
-      log_warning "No suitable host compiler found; will build CPU-only"
-    fi
-  else
-    log_info "No NVIDIA GPU detected (CPU mode)"
-  fi
 }
 
 # ----------------------- Audio devices ------------------------
@@ -532,8 +521,6 @@ main() {
   else
     log_info "AUR mode: payload already at $INSTALL_DIR"
   fi
-
-  ensure_path_contains_local_bin
 
   install_system_dependencies
   setup_python_environment
