@@ -16,6 +16,11 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $*"; }
 
+# Short aliases (to match existing calls in the script)
+ok()   { log_success "$@"; }
+warn() { log_warning "$@"; }
+err()  { log_error "$@"; }
+
 # ----------------------- Configuration -------------------------
 PACKAGE_NAME="hyprwhspr"
 INSTALL_DIR="/opt/hyprwhspr"   # default for Omarchy/local
@@ -62,7 +67,6 @@ log_info "USER_WC_DIR=$USER_WC_DIR"
 have_system_whisper() { command -v whisper-cli >/dev/null 2>&1; }
 
 ensure_path_contains_local_bin() {
-  # Add ~/.local/bin to PATH for current shell session
   case ":$PATH:" in
     *":$USER_BIN_DIR:"*) : ;;
     *) export PATH="$USER_BIN_DIR:$PATH" ;;
@@ -101,7 +105,6 @@ setup_python_environment() {
 }
 
 # ----------------------- whisper.cpp build ---------------------
-
 detect_cuda_host_compiler() {
   # Allow user override (e.g., HYPRWHSPR_CUDA_HOST=/usr/bin/clang++)
   if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
@@ -113,7 +116,7 @@ detect_cuda_host_compiler() {
   local gcc_major
   gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
 
-  # If GCC >= 15, nvcc likely chokes on headers → prefer g++-14 if available
+  # If GCC >= 15, nvcc may choke on headers → prefer g++-14 if available
   if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
     echo "/usr/bin/g++-14"
     return 0
@@ -162,25 +165,6 @@ setup_whisper() {
   if [ -z "${CUDACXX:-}" ] && [ -x /opt/cuda/bin/nvcc ]; then
     export CUDACXX="/opt/cuda/bin/nvcc"
     export PATH="/opt/cuda/bin:$PATH"
-  fi
-
-  # If we don't have a helper elsewhere, safely inline a minimal detector
-  if ! declare -f detect_cuda_host_compiler >/dev/null 2>&1; then
-    detect_cuda_host_compiler() {
-      # Honor override
-      if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
-        echo "$HYPRWHSPR_CUDA_HOST"; return 0
-      fi
-      local gcc_major
-      gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
-      if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
-        echo "/usr/bin/g++-14"; return 0
-      fi
-      if command -v g++ >/dev/null 2>&1; then
-        command -v g++; return 0
-      fi
-      echo ""
-    }
   fi
 
   # Decide on CUDA usage
@@ -238,6 +222,7 @@ setup_whisper() {
   fi
 
   # ---------- link into ~/.local/bin for PATH ----------
+  ensure_path_contains_local_bin
   mkdir -p "$USER_BIN_DIR"
   if [ -x "build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
     ln -s "$(pwd)/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
@@ -246,7 +231,6 @@ setup_whisper() {
 
   ok "whisper.cpp ready"
 }
-
 
 # ----------------------- Models --------------------------------
 download_models() {
@@ -427,7 +411,7 @@ setup_nvidia_support() {
         log_warning "nvcc still not visible; will build CPU-only"
         return 0
       fi
-    fi
+    endfi
 
     # Choose a host compiler for NVCC
     CUDA_HOST_COMPILER="$(detect_cuda_host_compiler)"
@@ -448,7 +432,7 @@ setup_nvidia_support() {
   else
     log_info "No NVIDIA GPU detected (CPU mode)"
   fi
-} 
+}
 
 # ----------------------- Audio devices ------------------------
 setup_audio_devices() {
@@ -485,34 +469,34 @@ validate_installation() {
 # ----------------------- Functional checks --------------------
 verify_permissions_and_functionality() {
   log_info "Verifying permissions & functionality…"
-  local ok=true
+  local all_ok=true
 
   if [ -e "/dev/uinput" ] && [ -r "/dev/uinput" ] && [ -w "/dev/uinput" ]; then
     log_success "✓ /dev/uinput accessible"
   else
-    log_error "✗ /dev/uinput not accessible"; ok=false
+    log_error "✗ /dev/uinput not accessible"; all_ok=false
   fi
 
-  groups "$ACTUAL_USER" | grep -q "\binput\b"  && log_success "✓ user in 'input'"  || { log_error "✗ user NOT in 'input'"; ok=false; }
-  groups "$ACTUAL_USER" | grep -q "\baudio\b"  && log_success "✓ user in 'audio'"  || { log_error "✗ user NOT in 'audio'"; ok=false; }
+  groups "$ACTUAL_USER" | grep -q "\binput\b"  && log_success "✓ user in 'input'"  || { log_error "✗ user NOT in 'input'"; all_ok=false; }
+  groups "$ACTUAL_USER" | grep -q "\baudio\b"  && log_success "✓ user in 'audio'"  || { log_error "✗ user NOT in 'audio'"; all_ok=false; }
 
   command -v ydotool >/dev/null && timeout 5s ydotool help >/dev/null 2>&1 \
-    && log_success "✓ ydotool responds" || { log_error "✗ ydotool problem"; ok=false; }
+    && log_success "✓ ydotool responds" || { log_error "✗ ydotool problem"; all_ok=false; }
 
   command -v pactl >/dev/null && pactl list short sources | grep -q input \
     && log_success "✓ audio inputs present" || log_warning "⚠ no audio inputs detected"
 
   if have_system_whisper || [ -x "$USER_WC_DIR/build/bin/whisper-cli" ]; then
     timeout 10s whisper-cli --help >/dev/null 2>&1 \
-      && log_success "✓ whisper-cli responds" || { log_error "✗ whisper-cli not responding"; ok=false; }
+      && log_success "✓ whisper-cli responds" || { log_error "✗ whisper-cli not responding"; all_ok=false; }
   fi
 
   if [ -x "$VENV_DIR/bin/python" ]; then
     timeout 5s "$VENV_DIR/bin/python" -c "import sounddevice" >/dev/null 2>&1 \
-      && log_success "✓ Python audio libs present" || { log_error "✗ Python audio libs missing"; ok=false; }
+      && log_success "✓ Python audio libs present" || { log_error "✗ Python audio libs missing"; all_ok=false; }
   fi
 
-  $ok && return 0 || return 1
+  $all_ok && return 0 || return 1
 }
 
 # ----------------------- Smoke test ---------------------------
@@ -548,6 +532,8 @@ main() {
   else
     log_info "AUR mode: payload already at $INSTALL_DIR"
   fi
+
+  ensure_path_contains_local_bin
 
   install_system_dependencies
   setup_python_environment
