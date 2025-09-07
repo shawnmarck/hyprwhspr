@@ -64,6 +64,8 @@ Then:
 
 ```bash
 hyprwhspr-setup
+# To auto-edit Waybar (opt-in), run:
+# HYPRWHSPR_WAYBAR_AUTO=1 hyprwhspr-setup
 
 systemctl --user enable --now ydotoold.service
 systemctl --user enable --now hyprwhspr.service

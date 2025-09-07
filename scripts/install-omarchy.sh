@@ -101,6 +101,34 @@ setup_python_environment() {
 }
 
 # ----------------------- whisper.cpp build ---------------------
+
+detect_cuda_host_compiler() {
+  # Allow user override (e.g., HYPRWHSPR_CUDA_HOST=/usr/bin/clang++)
+  if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
+    echo "$HYPRWHSPR_CUDA_HOST"
+    return 0
+  fi
+
+  # Parse system GCC major
+  local gcc_major
+  gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
+
+  # If GCC >= 15, nvcc likely chokes on headers → prefer g++-14 if available
+  if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
+    echo "/usr/bin/g++-14"
+    return 0
+  fi
+
+  # Otherwise try default g++
+  if command -v g++ >/dev/null 2>&1; then
+    echo "$(command -v g++)"
+    return 0
+  fi
+
+  # Last resort: none
+  echo ""
+}
+
 ensure_user_bin_symlink() {
   mkdir -p "$USER_BIN_DIR"
   if [ -x "$USER_WC_DIR/build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
@@ -112,7 +140,7 @@ ensure_user_bin_symlink() {
 setup_whisper() {
   log_info "Setting up whisper.cpp…"
 
-  # Choose build location (AUR → user dir; Omarchy → INSTALL_DIR)
+  # ---------- choose build location ----------
   if is_aur; then
     mkdir -p "$USER_WC_DIR"
     cd "$USER_WC_DIR"
@@ -121,48 +149,95 @@ setup_whisper() {
     cd "$INSTALL_DIR/whisper.cpp"
   fi
 
-  # Clone or update
+  # ---------- clone or update ----------
   if [ ! -d ".git" ]; then
     log_info "Cloning whisper.cpp → $PWD"
-    git clone https://github.com/ggml-org/whisper.cpp.git . 
+    git clone https://github.com/ggml-org/whisper.cpp.git .
   else
     git pull --ff-only || true
   fi
 
-  # CUDA availability (PATH may have been set by setup_nvidia_support)
-  use_cuda=false
-  if command -v nvcc >/dev/null 2>&1 || [ -x /opt/cuda/bin/nvcc ]; then
-    use_cuda=true
+  # ---------- CUDA availability & host compiler ----------
+  # Prefer env provided by setup_nvidia_support(), but self-heal if unset
+  if [ -z "${CUDACXX:-}" ] && [ -x /opt/cuda/bin/nvcc ]; then
+    export CUDACXX="/opt/cuda/bin/nvcc"
     export PATH="/opt/cuda/bin:$PATH"
-    log_info "CUDA detected: building with GPU support"
+  fi
+
+  # If we don't have a helper elsewhere, safely inline a minimal detector
+  if ! declare -f detect_cuda_host_compiler >/dev/null 2>&1; then
+    detect_cuda_host_compiler() {
+      # Honor override
+      if [[ -n "${HYPRWHSPR_CUDA_HOST:-}" && -x "$HYPRWHSPR_CUDA_HOST" ]]; then
+        echo "$HYPRWHSPR_CUDA_HOST"; return 0
+      fi
+      local gcc_major
+      gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
+      if [[ "$gcc_major" -ge 15 ]] && command -v g++-14 >/dev/null 2>&1; then
+        echo "/usr/bin/g++-14"; return 0
+      fi
+      if command -v g++ >/dev/null 2>&1; then
+        command -v g++; return 0
+      fi
+      echo ""
+    }
+  fi
+
+  # Decide on CUDA usage
+  use_cuda=false
+  if [[ -n "${CUDACXX:-}" && -x "${CUDACXX}" ]]; then
+    # Ensure a compatible host compiler is selected
+    if [ -z "${CUDAHOSTCXX:-}" ]; then
+      CUDAHOSTCXX="$(detect_cuda_host_compiler)"
+      export CUDAHOSTCXX
+    fi
+    if [[ -n "${CUDAHOSTCXX:-}" && -x "${CUDAHOSTCXX}" ]]; then
+      use_cuda=true
+      log_info "CUDA detected: building with GPU support (host: $CUDAHOSTCXX)"
+    else
+      log_warning "CUDA present but no suitable host compiler; building CPU-only"
+    fi
   else
     log_info "Building CPU-only"
   fi
 
-  # First build (or rebuild) with appropriate flags
-  cmake -B build -DGGML_CUDA=$([ "$use_cuda" = true ] && echo ON || echo OFF) -DCMAKE_BUILD_TYPE=Release
+  # ---------- configure & build ----------
+  if [[ "$use_cuda" == true ]]; then
+    cmake -B build \
+      -DGGML_CUDA=ON \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX}"
+  else
+    cmake -B build \
+      -DGGML_CUDA=OFF \
+      -DCMAKE_BUILD_TYPE=Release
+  fi
+
   cmake --build build -j --config Release
 
-  # Ensure binary exists
+  # ---------- verify binary ----------
   if [ ! -x "build/bin/whisper-cli" ]; then
     err "whisper.cpp build failed"
     exit 1
   fi
 
-  # If CUDA is available but the binary wasn't linked against CUDA, force a clean CUDA rebuild
-  if [ "$use_cuda" = true ] && ! ldd build/bin/whisper-cli | grep -qi cuda; then
-    log_info "whisper-cli not CUDA-linked; rebuilding with CUDA…"
+  # If CUDA was requested but the binary isn't CUDA-linked, retry once clean
+  if [[ "$use_cuda" == true ]] && ! ldd build/bin/whisper-cli | grep -qi cuda; then
+    log_info "CUDA requested but whisper-cli not CUDA-linked; rebuilding…"
     rm -rf build
-    cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+    cmake -B build \
+      -DGGML_CUDA=ON \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX}"
     cmake --build build -j --config Release
     if ! ldd build/bin/whisper-cli | grep -qi cuda; then
-      warn "CUDA requested but not linked; falling back to CPU binary"
+      warn "CUDA requested but still not linked; falling back to CPU binary"
     else
       ok "CUDA build complete"
     fi
   fi
 
-  # Link into ~/.local/bin for PATH
+  # ---------- link into ~/.local/bin for PATH ----------
   mkdir -p "$USER_BIN_DIR"
   if [ -x "build/bin/whisper-cli" ] && [ ! -e "$USER_BIN_DIR/whisper-cli" ]; then
     ln -s "$(pwd)/build/bin/whisper-cli" "$USER_BIN_DIR/whisper-cli" || true
@@ -171,6 +246,7 @@ setup_whisper() {
 
   ok "whisper.cpp ready"
 }
+
 
 # ----------------------- Models --------------------------------
 download_models() {
@@ -335,25 +411,44 @@ setup_nvidia_support() {
   log_info "GPU check…"
   if command -v nvidia-smi >/dev/null 2>&1; then
     log_success "NVIDIA GPU detected"
-    # Detect CUDA toolkit (handle PATH not yet updated)
-    if command -v nvcc >/dev/null 2>&1 || [ -x /opt/cuda/bin/nvcc ]; then
+    # nvcc path (prefer canonical CUDA location)
+    if [ -x /opt/cuda/bin/nvcc ] || command -v nvcc >/dev/null 2>&1; then
       export PATH="/opt/cuda/bin:$PATH"
+      export CUDACXX="/opt/cuda/bin/nvcc"
       log_success "CUDA toolkit present"
     else
       log_warning "CUDA toolkit not found; installing…"
       sudo pacman -S --needed --noconfirm cuda || true
-      # After install, prefer the canonical location even if shell rc hasn't run
       if [ -x /opt/cuda/bin/nvcc ]; then
         export PATH="/opt/cuda/bin:$PATH"
-        log_success "CUDA installed (nvcc available)"
+        export CUDACXX="/opt/cuda/bin/nvcc"
+        log_success "CUDA installed"
       else
-        log_warning "nvcc still not visible; continuing with CPU build"
+        log_warning "nvcc still not visible; will build CPU-only"
+        return 0
       fi
+    fi
+
+    # Choose a host compiler for NVCC
+    CUDA_HOST_COMPILER="$(detect_cuda_host_compiler)"
+    if [[ -n "$CUDA_HOST_COMPILER" ]]; then
+      export CUDAHOSTCXX="$CUDA_HOST_COMPILER"
+      log_info "CUDA host compiler: $CUDA_HOST_COMPILER"
+      if [[ "$CUDA_HOST_COMPILER" == "/usr/bin/g++" ]]; then
+        local gcc_major
+        gcc_major=$(gcc -dumpfullversion 2>/dev/null | cut -d. -f1 || echo 0)
+        if [[ "$gcc_major" -ge 15 ]]; then
+          log_warning "GCC $gcc_major with NVCC is known to fail; install gcc14 and re-run:"
+          log_warning "  yay -S gcc14 gcc14-libs ; HYPRWHSPR_CUDA_HOST=/usr/bin/g++-14 hyprwhspr-setup"
+        fi
+      fi
+    else
+      log_warning "No suitable host compiler found; will build CPU-only"
     fi
   else
     log_info "No NVIDIA GPU detected (CPU mode)"
   fi
-}
+} 
 
 # ----------------------- Audio devices ------------------------
 setup_audio_devices() {
