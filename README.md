@@ -343,6 +343,27 @@ Without a GPU, these models will be extremely slow (10-30 seconds per transcript
 
 ## Troubleshooting
 
+### Reset Installation
+
+If you're having persistent issues, you can completely reset hyprwhspr:
+
+```bash
+# Run the reset script (removes everything)
+./scripts/reset-hyprwhspr.sh
+
+# Then reinstall fresh
+./scripts/install-omarchy.sh
+```
+
+The reset script will:
+
+- Stop and disable all services
+- Remove installation directory (`/opt/hyprwhspr`)
+- Remove user config and data
+- Clean up waybar integration
+- Remove hyprland scripts
+- Clean systemd configuration
+
 ### Common issues
 
 **I heard the sound, but don't see text!** 

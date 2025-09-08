@@ -38,7 +38,7 @@ package() {
 
   # Payload into /usr/lib keeps repo layout intact for your installer
   install -d "$pkgdir/usr/lib/$pkgname"
-  cp -r lib bin scripts config README.md LICENSE requirements.txt "$pkgdir/usr/lib/$pkgname"
+  cp -r lib bin scripts config share README.md LICENSE requirements.txt "$pkgdir/usr/lib/$pkgname"
 
   # Runtime launcher: prefers user venv + user whisper.cpp bin
   install -d "$pkgdir/usr/bin"

@@ -390,15 +390,31 @@ EOF
   fi
 
   if [ -f "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" ]; then
-    cp "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" "$USER_HOME/.config/waybar/" || true
+    log_info "Copying waybar CSS file to user config..."
+    if cp "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" "$USER_HOME/.config/waybar/"; then
+      log_success "✓ Waybar CSS file copied to user config"
+    else
+      log_error "✗ Failed to copy waybar CSS file to user config"
+      return 1
+    fi
+    
     local waybar_style="$USER_HOME/.config/waybar/style.css"
     if [ -f "$waybar_style" ] && ! grep -q "hyprwhspr-style.css" "$waybar_style"; then
+      log_info "Adding CSS import to waybar style.css..."
       if grep -q "^@import" "$waybar_style"; then
         awk '/^@import/ { print; last_import = NR } !/^@import/ { if (last_import && NR == last_import + 1) { print "@import \"hyprwhspr-style.css\";"; print ""; } print }' "$waybar_style" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
       else
         echo -e "@import \"hyprwhspr-style.css\";\n$(cat "$waybar_style")" > "$waybar_style.tmp" && mv "$waybar_style.tmp" "$waybar_style"
       fi
+      log_success "✓ CSS import added to waybar style.css"
+    elif [ -f "$waybar_style" ]; then
+      log_info "CSS import already present in waybar style.css"
+    else
+      log_warning "No waybar style.css found - user will need to add CSS import manually"
     fi
+  else
+    log_error "✗ Waybar CSS file not found at $INSTALL_DIR/config/waybar/hyprwhspr-style.css"
+    return 1
   fi
 
   log_success "Waybar integration updated"
@@ -546,6 +562,21 @@ main() {
     sudo mkdir -p "$INSTALL_DIR"; sudo chown "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_DIR"
     log_info "Copying application files…"
     sudo cp -r . "$INSTALL_DIR/"; sudo chown -R "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_DIR"
+    
+    # Verify critical files were copied
+    if [ -f "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" ]; then
+      log_success "✓ Waybar CSS file copied successfully"
+    else
+      log_error "✗ Waybar CSS file missing after copy operation"
+      exit 1
+    fi
+    
+    if [ -d "$INSTALL_DIR/share/assets" ]; then
+      log_success "✓ Assets directory copied successfully"
+    else
+      log_error "✗ Assets directory missing after copy operation"
+      exit 1
+    fi
   else
     log_info "AUR mode: payload already at $INSTALL_DIR"
   fi
