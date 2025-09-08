@@ -389,6 +389,29 @@ EOF
     fi
   fi
 
+  # Add the module to modules-right array if not already present
+  if ! grep -q '"custom/hyprwhspr"' "$waybar_config"; then
+    log_info "Adding hyprwhspr module as first entry in modules-right array..."
+    local modules_right_line
+    modules_right_line=$(grep -n '"modules-right"' "$waybar_config" | head -1 | cut -d: -f1 || true)
+    if [ -n "$modules_right_line" ]; then
+      # Find the opening bracket of modules-right array
+      local open_line
+      open_line=$(awk -v start="$modules_right_line" 'NR>=start && /\[/ {print NR; exit}' "$waybar_config")
+      if [ -n "$open_line" ]; then
+        # Add the module right after the opening bracket
+        awk -v open="$open_line" 'NR==open {print; print "    \"custom/hyprwhspr\","; next} {print}' "$waybar_config" > "$waybar_config.tmp" && mv "$waybar_config.tmp" "$waybar_config"
+        log_success "✓ Added hyprwhspr module as first entry in modules-right array"
+      else
+        log_warning "Could not find opening bracket of modules-right array"
+      fi
+    else
+      log_warning "Could not find modules-right array in waybar config"
+    fi
+  else
+    log_info "hyprwhspr module already present in modules-right array"
+  fi
+
   if [ -f "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" ]; then
     log_info "Copying waybar CSS file to user config..."
     if cp "$INSTALL_DIR/config/waybar/hyprwhspr-style.css" "$USER_HOME/.config/waybar/"; then
