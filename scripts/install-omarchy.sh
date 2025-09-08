@@ -220,39 +220,63 @@ setup_whisper() {
   fi
 
   # ---------- configure & build ----------
+  local build_success=false
+  local cuda_build_failed=false
+  
   if [[ "$use_cuda" == true ]]; then
-    cmake -B build \
+    log_info "Attempting CUDA build..."
+    if timeout 300 cmake -B build \
       -DGGML_CUDA=ON \
       -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX}"
-  else
+      -DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX}" 2>/dev/null; then
+      
+      log_info "CUDA configuration successful, building..."
+      if timeout 800 cmake --build build -j --config Release 2>/dev/null; then
+        # Verify CUDA binary was built correctly
+        if [ -x "build/bin/whisper-cli" ] && ldd build/bin/whisper-cli | grep -qi cuda; then
+          log_success "CUDA build completed successfully"
+          build_success=true
+        else
+          log_warning "CUDA build completed but binary not CUDA-linked"
+          cuda_build_failed=true
+        fi
+      else
+        log_warning "CUDA build timed out or failed"
+        cuda_build_failed=true
+      fi
+    else
+      log_warning "CUDA configuration failed"
+      cuda_build_failed=true
+    fi
+  fi
+  
+  # Fallback to CPU-only build if CUDA failed or wasn't requested
+  if [[ "$build_success" != true ]]; then
+    if [[ "$cuda_build_failed" == true ]]; then
+      log_info "Falling back to CPU-only build due to CUDA issues..."
+      log_info "This is common with older NVIDIA cards (RTX 20xx series) and newer CUDA toolchains"
+    else
+      log_info "Building CPU-only (no CUDA requested)"
+    fi
+    
+    rm -rf build
     cmake -B build \
       -DGGML_CUDA=OFF \
       -DCMAKE_BUILD_TYPE=Release
+    
+    if cmake --build build -j --config Release; then
+      log_success "CPU-only build completed successfully"
+      build_success=true
+    else
+      log_error "CPU-only build failed"
+      build_success=false
+    fi
   fi
-
-  cmake --build build -j --config Release
 
   # ---------- verify binary ----------
-  if [ ! -x "build/bin/whisper-cli" ]; then
+  if [[ "$build_success" != true ]] || [ ! -x "build/bin/whisper-cli" ]; then
     err "whisper.cpp build failed"
     exit 1
-  fi
-
-  # If CUDA was requested but the binary isn't CUDA-linked, retry once clean
-  if [[ "$use_cuda" == true ]] && ! ldd build/bin/whisper-cli | grep -qi cuda; then
-    log_info "CUDA requested but whisper-cli not CUDA-linked; rebuilding…"
-    rm -rf build
-    cmake -B build \
-      -DGGML_CUDA=ON \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX}"
-    cmake --build build -j --config Release
-    if ! ldd build/bin/whisper-cli | grep -qi cuda; then
-      warn "CUDA requested but still not linked; falling back to CPU binary"
-    else
-      ok "CUDA build complete"
-    fi
   fi
 
   # ---------- link into ~/.local/bin for PATH ----------
