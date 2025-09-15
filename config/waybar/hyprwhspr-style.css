@@ -24,6 +24,37 @@
   border-color: #d97706;
 }
 
+/* Granular error classes for better diagnostics */
+#custom-hyprwhspr.error.service_failed {
+  color: #dc2626;            /* red-600 - service failed */
+  border-color: #dc2626;
+}
+
+#custom-hyprwhspr.error.service_inactive {
+  color: #6b7280;            /* gray-500 - service inactive */
+  border-color: #6b7280;
+}
+
+#custom-hyprwhspr.error.ydotoold {
+  color: #f59e0b;            /* amber-500 - ydotoold issue */
+  border-color: #f59e0b;
+}
+
+#custom-hyprwhspr.error.pipewire_down {
+  color: #8b5cf6;            /* violet-500 - PipeWire issue */
+  border-color: #8b5cf6;
+}
+
+#custom-hyprwhspr.error.model_missing {
+  color: #ef4444;            /* red-500 - model missing */
+  border-color: #ef4444;
+}
+
+#custom-hyprwhspr.error.unknown {
+  color: #d97706;            /* amber-600 - unknown error */
+  border-color: #d97706;
+}
+
 /* Hover effects - Waybar doesn't support filter, so we use opacity instead */
 #custom-hyprwhspr:hover {
   opacity: 0.8;
