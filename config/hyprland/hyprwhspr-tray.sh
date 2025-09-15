@@ -93,6 +93,11 @@ mic_recording_now() {
         return 1
     fi
     
+    # Check if mic is accessible first - if not, definitely not recording
+    if ! mic_accessible; then
+        return 1
+    fi
+    
     # Check PipeWire state - if mic is RUNNING and hyprwhspr is active, assume it's recording
     local def state
     def="$(try 'pactl get-default-source')"
