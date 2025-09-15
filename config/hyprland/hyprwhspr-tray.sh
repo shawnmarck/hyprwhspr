@@ -25,6 +25,9 @@ cmd_cached() {
 
 _date_ms(){ date +%s%3N 2>/dev/null || date +%s; }
 
+# Tiny helper for fast, safe command execution
+try() { timeout 0.2s bash -lc "$*" 2>/dev/null; }
+
 # Function to check if hyprwhspr is running
 is_hyprwhspr_running() {
     systemctl --user is-active --quiet hyprwhspr.service
@@ -54,27 +57,87 @@ model_exists() {
     local model_path
     model_path=$(grep -oE '"model"\s*:\s*"[^"]+"' "$cfg" 2>/dev/null | cut -d\" -f4)
     [[ -n "$model_path" ]] || return 0  # use defaults; skip
+    
+    # If it's a short name like "base.en", resolve to full path
+    if [[ "$model_path" != /* ]]; then
+        model_path="/opt/hyprwhspr/whisper.cpp/models/ggml-${model_path}.bin"
+    fi
+    
     [[ -f "$model_path" ]] || return 1
+}
+
+# Microphone detection functions (clean, fast, reliable)
+mic_present() {
+    # prefer Pulse/PipeWire view; fall back to ALSA card list
+    [[ -n "$(try 'pactl list short sources | grep -v monitor')" ]] && return 0
+    [[ -n "$(try 'arecord -l | grep -E ^card')" ]] && return 0
+    return 1
+}
+
+mic_accessible() {
+    # if we can ask for a default source, the session can likely capture
+    try 'pactl get-default-source' >/dev/null || return 1
+    # /dev/snd should exist; don't over-enforce groups (PipeWire brokers access)
+    [[ -d /dev/snd ]] || return 1
+    return 0
+}
+
+mic_recording_now() {
+    # Only consider it recording if hyprwhspr service is active AND mic is in use
+    if ! is_hyprwhspr_running; then
+        return 1
+    fi
+    
+    # Check if hyprwhspr process is actually running
+    if ! pgrep -f "hyprwhspr" > /dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Check PipeWire state - if mic is RUNNING and hyprwhspr is active, assume it's recording
+    local def state
+    def="$(try 'pactl get-default-source')"
+    [[ -n "$def" ]] || def='@DEFAULT_SOURCE@'
+    state="$(try "pactl list sources | grep -B 5 -A 5 \"Name: $def\" | grep 'State:' | awk '{print \$2}'")"
+    
+    # Only consider RUNNING as recording (not SUSPENDED) to avoid false positives
+    [[ "$state" == "RUNNING" ]]
+}
+
+mic_fidelity_label() {
+    local def spec rate ch fmt
+    def="$(try 'pactl get-default-source')"
+    [[ -n "$def" ]] || def='@DEFAULT_SOURCE@'
+    spec="$(try "pactl list sources | awk -v D=\"$def\" '
+        /^[[:space:]]*Name:/{name=\$2}
+        /^[[:space:]]*Sample Specification:/{spec=\$3\" \"\$4\" \"\$5}
+        name==D && spec{print spec; exit}'")"
+    # spec looks like: s16le 2ch 48000Hz
+    fmt=$(awk '{print $1}' <<<"$spec")
+    ch=$(awk '{print $2}' <<<"$spec" | tr -dc '0-9')
+    rate=$(awk '{print $3}' <<<"$spec" | tr -dc '0-9')
+
+    # super simple heuristic:
+    # ≥48k and (24/32-bit OR plain 16-bit) → "hi-fi"; else "standard"
+    if [[ -n "$rate" && $rate -ge 48000 ]]; then
+        echo "hi-fi ($spec)"
+    else
+        [[ -n "$spec" ]] && echo "standard ($spec)" || echo ""
+    fi
+}
+
+mic_tooltip_line() {
+    local bits=()
+    mic_present     && bits+=("present") || bits+=("not present")
+    mic_accessible  && bits+=("access:ok") || bits+=("access:denied")
+    mic_recording_now && bits+=("recording") || bits+=("idle")
+    local fid; fid="$(mic_fidelity_label)"
+    [[ -n "$fid" ]] && bits+=("$fid")
+    echo "Mic: ${bits[*]}"
 }
 
 # Function to check if we can actually start recording
 can_start_recording() {
-    # Check if microphone is available and accessible
-    if ! pactl list short sources 2>/dev/null | grep -q "alsa_input"; then
-        return 1
-    fi
-    
-    # Check if we can actually access the audio device
-    if ! lsof /dev/snd/* 2>/dev/null | grep -q "alsa_input"; then
-        return 1
-    fi
-    
-    # Check if audio input is not already in use by another process
-    if lsof /dev/snd/* 2>/dev/null | grep -q "whisper\|hyprwhspr" | grep -q "r"; then
-        return 1
-    fi
-    
-    return 0
+    mic_present && mic_accessible
 }
 
 # Function to check if hyprwhspr is currently recording
@@ -84,52 +147,8 @@ is_hyprwhspr_recording() {
         return 1
     fi
     
-    # Method 1: Check for actual audio input activity (most reliable) - cached
-    if [[ -n "$(cmd_cached pactl_sources 500 "pactl list short sources | grep -E 'alsa_input.*RUNNING'")" ]]; then
-        # Additional check: verify there's actual audio data flowing
-        if [[ -n "$(cmd_cached pactl_sources_hz 500 "pactl list short sources | grep -E 'alsa_input.*RUNNING.*[0-9]+Hz'")" ]]; then
-            return 0
-        fi
-    fi
-    
-    # Method 2: Check for active audio capture processes (more reliable) - cached
-    if [[ -n "$(cmd_cached pgrep_hyprwhspr 500 "pgrep -f 'hyprwhspr'")" ]]; then
-        # Check if the hyprwhspr process is actively using audio devices
-        if [[ -n "$(cmd_cached lsof_snd_hyprwhspr 500 "lsof /dev/snd/* | grep -E 'hyprwhspr.*r'")" ]]; then
-            return 0
-        fi
-        
-        # Alternative: check if Python process is consuming audio
-        if [[ -n "$(cmd_cached lsof_snd_python 500 "lsof /dev/snd/* | grep -E 'python.*r'")" ]]; then
-            return 0
-        fi
-    fi
-    
-    # Method 3: Check for sounddevice or portaudio processes - cached
-    if [[ -n "$(cmd_cached pgrep_audio_libs 500 "pgrep -f 'sounddevice|portaudio'")" ]]; then
-        return 0
-    fi
-    
-    # Method 4: Check for any Python process with actual audio device file descriptors - cached
-    local python_pid=$(cmd_cached pgrep_python_hyprwhspr 500 "pgrep -f 'python.*hyprwhspr' | head -1")
-    if [ -n "$python_pid" ]; then
-        # Only look for actual /dev/snd device files, not library paths
-        if [[ -n "$(cmd_cached lsof_python_pid 500 "lsof -p $python_pid | grep -E '^.*[0-9]*[rw].*[0-9]*[0-9]* /dev/snd/'")" ]]; then
-            return 0
-        fi
-    fi
-    
-    # Method 5: Check for PipeWire audio activity (hyprwhspr might use PipeWire client API) - cached
-    if [[ -n "$(cmd_cached pactl_pipewire 500 "pactl list short sources | grep -E 'alsa_input.*RUNNING|pipewire.*RUNNING'")" ]]; then
-        return 0
-    fi
-    
-    # Method 6: Check for any recent audio activity in system - cached
-    if [[ -n "$(cmd_cached lsof_snd_any 500 "lsof /dev/snd/* | grep -E 'python.*r|hyprwhspr.*r'")" ]]; then
-        return 0
-    fi
-    
-    return 1
+    # Use clean mic detection instead of heavy process scanning
+    mic_recording_now
 }
 
 
@@ -202,7 +221,7 @@ check_service_health() {
 
 # Function to emit JSON output for waybar with granular error classes
 emit_json() {
-    local state="$1" reason="${2:-}"
+    local state="$1" reason="${2:-}" custom_tooltip="${3:-}"
     local icon text tooltip class="$state"
     
     case "$state" in
@@ -230,6 +249,11 @@ emit_json() {
             state="error"
             ;;
     esac
+    
+    # Add mic status to tooltip if provided
+    if [[ -n "$custom_tooltip" ]]; then
+        tooltip="$tooltip\n$custom_tooltip"
+    fi
     
     # Output JSON for waybar
     printf '{"text":"%s","class":"%s","tooltip":"%s"}\n' "$text" "$class" "$tooltip"
@@ -283,12 +307,12 @@ get_current_state() {
 case "${1:-status}" in
     "status")
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "toggle")
         toggle_hyprwhspr
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "start")
         if ! is_hyprwhspr_running; then
@@ -300,7 +324,7 @@ case "${1:-status}" in
             fi
         fi
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "stop")
         if is_hyprwhspr_running; then
@@ -308,18 +332,18 @@ case "${1:-status}" in
             show_notification "hyprwhspr" "Stopped" "low"
         fi
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "ydotoold")
         start_ydotoold
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "restart")
         systemctl --user restart hyprwhspr.service
         show_notification "hyprwhspr" "Restarted" "normal"
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     "health")
         check_service_health
@@ -329,7 +353,7 @@ case "${1:-status}" in
             echo "Service health check failed, attempting recovery"
         fi
         IFS=: read -r s r <<<"$(get_current_state)"
-        emit_json "$s" "$r"
+        emit_json "$s" "$r" "$(mic_tooltip_line)"
         ;;
     *)
         echo "Usage: $0 [status|toggle|start|stop|ydotoold|restart|health]"
