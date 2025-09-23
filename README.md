@@ -117,10 +117,12 @@ Edit `~/.config/hyprwhspr/config.json`:
 }
 ```
 
-The prompt influences how Whisper interprets and transcribes your audio. Examples:
-f
-- `"Transcribe as technical documentation with proper capitalization and technical terminology."`
+The prompt influences how Whisper interprets and transcribes your audio, eg:
+
+- `"Transcribe as technical documentation with proper capitalization, acronyms and technical terminology."`
+
 - `"Transcribe as casual conversation with natural speech patterns."`
+  
 - `"Transcribe as formal business communication with professional language."`
 
 **Audio feedback** - optional sound notifications:
