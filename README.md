@@ -10,6 +10,18 @@
 all local | waybar integration | audio feedback | auto-paste | cpu or gpu | easy setup
 </p>
 
+---
+
+> **🔱 This is a fork** with performance improvements and bug fixes  
+> **Upstream:** [goodroot/hyprwhspr](https://github.com/goodroot/hyprwhspr)  
+> **New in this fork:**  
+> • Instant waybar status updates (100ms vs 1000ms, 95% less CPU)  
+> • SPACE key support for keybinds (enables ALT+SPACE)  
+> • Multiple installation and configuration fixes  
+> See [CHANGELOG.md](CHANGELOG.md) for full details
+
+---
+
  <p align="center">
     <i>pssst...un-mute!</i>
  </p>
