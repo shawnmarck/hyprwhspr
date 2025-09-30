@@ -19,6 +19,10 @@
 - Updated `config/waybar/hyprwhspr-module.jsonc` to remove `interval` parameter
 
 ### Fixed
+- **Fixed keybind conflict with superset key combinations**
+  - Changed key matching from subset to exact match in `lib/src/global_shortcuts.py`
+  - Prevents ALT+SPACE from triggering when SUPER+ALT+SPACE is pressed
+  - Allows distinct keybinds for ALT+SPACE (hyprwhspr) and SUPER+ALT+SPACE (OS menu)
 - Fixed ydotool service conflicts (use system `ydotool.service` instead of custom `ydotoold.service`)
 - Fixed waybar module name mismatch (`custom/hyprwhspr` vs `hyprwhspr`)
 - Removed aggressive health checking that caused false ERR states
