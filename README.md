@@ -84,6 +84,12 @@ Edit `~/.config/hyprwhspr/config.json`:
 ```jsonc
 {
     "primary_shortcut": "SUPER+ALT+D",
+
+**Keybind format**: Use `+` as separator
+- ✅ `"SUPER+ALT+D"`, `"ALT+SPACE"`
+- ❌ `"ALT, SPACE"` (comma not supported)
+
+**Supported keys**: Modifiers (SUPER/ALT/CTRL/SHIFT), Function keys (F1-F12), Letters (A-Z), Special keys (SPACE/ENTER/TAB/ESC/BACKSPACE)
     "model": "base.en",
     "audio_feedback": true, // Optional
 }
@@ -224,13 +230,15 @@ _Thanks for the speech-to-text replacement ideas from [WhisperTux](https://githu
 
 ### Waybar integration
 
+**Standard setup:**
+
 Add to your `~/.config/waybar/config`:
 
 ```json
 {
     "custom/hyprwhspr": {
         "exec": "/opt/hyprwhspr/config/hyprland/hyprwhspr-tray.sh status",
-        "interval": 2,
+        "interval": 1,
         "return-type": "json",
         "exec-on-event": true,
         "format": "{}",
@@ -241,6 +249,10 @@ Add to your `~/.config/waybar/config`:
     }
 }
 ```
+
+**Performance optimization** (optional - for instant updates):
+
+See [CHANGELOG.md](CHANGELOG.md) for details on the continuous monitoring feature that provides ~95% less CPU usage and <100ms status transitions.
 
 **Add CSS styling** to your `~/.config/waybar/style.css`:
 
