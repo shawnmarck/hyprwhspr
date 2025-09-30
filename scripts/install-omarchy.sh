@@ -373,16 +373,33 @@ setup_hyprland_integration() {
 # ----------------------- Waybar integration --------------------
 setup_waybar_integration() {
   log_info "Waybar integration…"
-  # AUR: only auto-edit when explicitly opted in
-  if is_aur && [[ "${HYPRWHSPR_WAYBAR_AUTO:-}" != "1" ]]; then
-    log_info "AUR mode: skipping auto Waybar edits (opt-in: HYPRWHSPR_WAYBAR_AUTO=1 hyprwhspr-setup)"
-    return 0
+  
+  # Check if waybar is installed (should be required dependency now)
+  if ! command -v waybar >/dev/null 2>&1; then
+    log_error "Waybar not found - this should be installed as a dependency"
+    log_info "Please install waybar: yay -S waybar"
+    return 1
   fi
 
   local waybar_config="$USER_HOME/.config/waybar/config.jsonc"
   if [ ! -f "$waybar_config" ]; then
     log_warning "Waybar config not found ($waybar_config)"
-    return 0
+    log_info "Creating basic Waybar config with hyprwhspr integration..."
+    
+    # Create basic waybar config
+    mkdir -p "$USER_HOME/.config/waybar"
+    cat > "$waybar_config" <<'WAYBAR_CONFIG'
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["hyprland/window"],
+  "modules-right": ["custom/hyprwhspr", "clock", "tray"],
+  "include": ["hyprwhspr-module.jsonc"]
+}
+WAYBAR_CONFIG
+    log_success "Created basic Waybar config"
   fi
 
   mkdir -p "$USER_HOME/.config/waybar"
