@@ -162,6 +162,17 @@ class GlobalShortcuts:
             'u': ecodes.KEY_U, 'v': ecodes.KEY_V, 'w': ecodes.KEY_W, 'x': ecodes.KEY_X,
             'y': ecodes.KEY_Y, 'z': ecodes.KEY_Z
         }
+
+        # Special keys
+        special_key_map = {
+            'space': ecodes.KEY_SPACE,
+            'enter': ecodes.KEY_ENTER,
+            'return': ecodes.KEY_ENTER,
+            'tab': ecodes.KEY_TAB,
+            'esc': ecodes.KEY_ESC,
+            'escape': ecodes.KEY_ESC,
+            'backspace': ecodes.KEY_BACKSPACE
+        }
         
         # Check function keys first
         if key_string in function_key_map:
@@ -175,6 +186,10 @@ class GlobalShortcuts:
         if key_string in char_key_map:
             return char_key_map[key_string]
             
+
+        # Check special keys
+        if key_string in special_key_map:
+            return special_key_map[key_string]
         return None
     
     def _keycode_to_name(self, keycode: int) -> str:
