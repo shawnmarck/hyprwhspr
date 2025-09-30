@@ -253,7 +253,9 @@ class GlobalShortcuts:
     
     def _check_shortcut_combination(self):
         """Check if current pressed keys match target combination"""
-        if self.target_keys.issubset(self.pressed_keys):
+        # Exact match: only trigger if pressed keys are exactly the target keys
+        # This prevents SUPER+ALT+SPACE from triggering when only ALT+SPACE is configured
+        if self.target_keys == self.pressed_keys:
             current_time = time.time()
             
             # Implement debouncing
