@@ -70,18 +70,22 @@ class hyprwhsprApp:
         try:
             print("🎤 Starting recording...")
             self.is_recording = True
-            
+
+            # Update status file for waybar
+            self._update_recording_status("recording")
+
             # Play start sound
             self.audio_manager.play_start_sound()
-            
+
             # Start audio capture
             self.audio_capture.start_recording()
-            
+
             print("✅ Recording started - speak now!")
-            
+
         except Exception as e:
             print(f"❌ Failed to start recording: {e}")
             self.is_recording = False
+            self._update_recording_status("stopped")
 
     def _stop_recording(self):
         """Stop voice recording and process audio"""
@@ -91,18 +95,21 @@ class hyprwhsprApp:
         try:
             print("🛑 Stopping recording...")
             self.is_recording = False
-            
+
+            # Update status file for waybar
+            self._update_recording_status("stopped")
+
             # Stop audio capture
             audio_data = self.audio_capture.stop_recording()
-            
+
             # Play stop sound
             self.audio_manager.play_stop_sound()
-            
+
             if audio_data is not None:
                 self._process_audio(audio_data)
             else:
                 print("⚠️ No audio data captured")
-                
+
         except Exception as e:
             print(f"❌ Error stopping recording: {e}")
 
@@ -183,13 +190,40 @@ class hyprwhsprApp:
             if self.is_recording:
                 self.audio_capture.stop_recording()
 
+            # Remove recording status file
+            self._update_recording_status("stopped")
+
             # Save configuration
             self.config.save_config()
-            
+
             print("✅ Cleanup completed")
-            
+
         except Exception as e:
             print(f"⚠️ Error during cleanup: {e}")
+
+  def _update_recording_status(self, status):
+        """Update recording status file for waybar integration"""
+        try:
+            import os
+            from pathlib import Path
+
+            # Ensure config directory exists
+            config_dir = Path.home() / '.config' / 'hyprwhspr'
+            config_dir.mkdir(parents=True, exist_ok=True)
+
+            status_file = config_dir / 'recording_status'
+
+            if status == "recording":
+                # Write recording status
+                with open(status_file, 'w') as f:
+                    f.write('recording')
+            else:
+                # Remove status file when not recording
+                if status_file.exists():
+                    status_file.unlink()
+
+        except Exception as e:
+            print(f"⚠️ Error updating recording status: {e}")
 
 
 def main():

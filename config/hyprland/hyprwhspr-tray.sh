@@ -83,29 +83,41 @@ mic_accessible() {
 }
 
 mic_recording_now() {
-    # Only consider it recording if hyprwhspr service is active AND mic is in use
+    # DEBUG: Add logging to track function execution
+    echo "DEBUG: mic_recording_now() called" >&2
+
+    # Only consider it recording if hyprwhspr service is active AND we have explicit evidence
     if ! is_hyprwhspr_running; then
+        echo "DEBUG: hyprwhspr not running, returning false" >&2
         return 1
     fi
-    
-    # Check if hyprwhspr process is actually running
-    if ! pgrep -f "hyprwhspr" > /dev/null 2>&1; then
-        return 1
+
+    echo "DEBUG: hyprwhspr is running" >&2
+
+    # Primary method: check for explicit recording status file (most reliable)
+    local status_file="$HOME/.config/hyprwhspr/recording_status"
+    echo "DEBUG: Checking status file: $status_file" >&2
+    if [[ -f "$status_file" ]]; then
+        echo "DEBUG: Status file exists" >&2
+        # Check file modification time to ensure it's recent (within last 3 seconds)
+        local file_age
+        file_age=$(($(date +%s) - $(stat -c %Y "$status_file" 2>/dev/null || echo 0)))
+        echo "DEBUG: File age: $file_age seconds" >&2
+        if [[ "$file_age" -lt 3 ]]; then
+            # File exists and is recent, read the status
+            local status
+            status="$(cat "$status_file" 2>/dev/null)"
+            echo "DEBUG: File contents: [$status]" >&2
+            [[ "$status" == "recording" ]] && return 0
+        fi
+    else
+        echo "DEBUG: Status file does not exist" >&2
     fi
-    
-    # Check if mic is accessible first - if not, definitely not recording
-    if ! mic_accessible; then
-        return 1
-    fi
-    
-    # Check PipeWire state - if mic is RUNNING and hyprwhspr is active, assume it's recording
-    local def state
-    def="$(try 'pactl get-default-source')"
-    [[ -n "$def" ]] || def='@DEFAULT_SOURCE@'
-    state="$(try "pactl list sources | grep -B 5 -A 5 \"Name: $def\" | grep 'State:' | awk '{print \$2}'")"
-    
-    # Only consider RUNNING as recording (not SUSPENDED) to avoid false positives
-    [[ "$state" == "RUNNING" ]]
+
+    # If no status file or it's old/stale, assume not recording
+    # This prevents false positives from other apps using the microphone
+    echo "DEBUG: No valid recording evidence, returning false" >&2
+    return 1
 }
 
 mic_fidelity_label() {
