@@ -402,6 +402,12 @@ setup_hyprland_integration() {
       sed -i "s|/opt/hyprwhspr|$INSTALL_DIR|g" "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh"
     fi
   fi
+  
+  # Copy the event-driven monitoring script
+  if [ -f "$INSTALL_DIR/config/hyprland/hyprwhspr-tray-watch.sh" ]; then
+    cp "$INSTALL_DIR/config/hyprland/hyprwhspr-tray-watch.sh" "$USER_HOME/.config/hypr/scripts/"
+    chmod +x "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray-watch.sh"
+  fi
   log_success "Hyprland integration configured"
 }
 
@@ -442,13 +448,11 @@ WAYBAR_CONFIG
 {
   "custom/hyprwhspr": {
     "format": "{}",
-    "exec": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh status",
-    "interval": 1,
+    "exec": "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray-watch.sh",
     "return-type": "json",
-    "exec-on-event": true,
-    "on-click": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh toggle",
-    "on-click-right": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh start",
-    "on-click-middle": "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh restart",
+    "on-click": "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh record",
+    "on-click-right": "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh start",
+    "on-click-middle": "$USER_HOME/.config/hypr/scripts/hyprwhspr-tray.sh restart",
     "tooltip": true
   }
 }

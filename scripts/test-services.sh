@@ -61,7 +61,7 @@ fi
 echo ""
 echo "🎯 Summary:"
 echo "If you see any ❌ marks above, the services may need configuration."
-echo "Run './scripts/install-services.sh' to set up the services properly."
+echo "Run './scripts/install-omarchy.sh' to set up the services properly."
 echo ""
 echo "To start services manually:"
 echo "  systemctl --user start hyprwhspr"
