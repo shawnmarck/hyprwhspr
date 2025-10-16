@@ -42,11 +42,7 @@ class ConfigManager:
         try:
             self.config_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            try:
-                from .logger import log_warning
-                log_warning(f"Could not create config directory: {e}", "CONFIG")
-            except ImportError:
-                print(f"Warning: Could not create config directory: {e}")
+            print(f"Warning: Could not create config directory: {e}")
     
     def _load_config(self):
         """Load configuration from file"""
