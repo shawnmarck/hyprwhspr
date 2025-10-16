@@ -201,7 +201,7 @@ class hyprwhsprApp:
         except Exception as e:
             print(f"⚠️ Error during cleanup: {e}")
 
-  def _update_recording_status(self, status):
+    def _update_recording_status(self, status):
         """Update recording status file for waybar integration"""
         try:
             import os

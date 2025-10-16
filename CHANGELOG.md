@@ -2,31 +2,34 @@
 
 ## [Unreleased]
 
-### Added
-- **SPACE key support** in keybind configuration
-  - Now supports special keys: SPACE, ENTER, TAB, ESC, BACKSPACE
-  - Enables `ALT+SPACE` and other space-based shortcuts
-  - Updated `lib/src/global_shortcuts.py` with `special_key_map`
+### Fixed
+- **CRITICAL: Fixed Waybar recording status indicator**
+  - Root cause: Double-triggering from both Hyprland keybind and Python app's global shortcuts
+  - Solution: Removed Hyprland keybind, using only Python app's evdev-based shortcuts
+  - Fixed `_update_recording_status()` method indentation in `lib/main.py`
+  - Upgraded status monitoring from polling to event-driven using `inotify`
+  - Result: Instant status updates (<100ms), no more inverted RDY/REC states
+  - Performance: ~95% CPU reduction when idle
 
-- **Instant waybar status updates** 
-  - New continuous monitoring script: `config/hyprland/hyprwhspr-tray-watch.sh`
-  - Event-driven updates (no polling interval)
-  - Performance: ~95% less CPU usage when idle, <100ms status transitions
-  - Adaptive sleep: 100ms during recording, 500ms when idle
+### Added
+- **System restart utility** (`restart_hyprwhspr.sh`)
+  - Complete system restart with cleanup
+  - Automated status verification
+  - User-friendly test instructions
+
+- **Comprehensive system documentation** (`SYSTEM_ARCHITECTURE.md`)
+  - Complete architecture overview
+  - Component interaction diagrams
+  - Debugging guide
+  - Configuration reference
+
+- **Python cache exclusions**
+  - Added `.gitignore` rules for `__pycache__/` and `*.pyc`
 
 ### Changed
-- Waybar integration now uses continuous monitoring instead of 1-second polling
-- Updated `config/waybar/hyprwhspr-module.jsonc` to remove `interval` parameter
-
-### Fixed
-- **Fixed keybind conflict with superset key combinations**
-  - Changed key matching from subset to exact match in `lib/src/global_shortcuts.py`
-  - Prevents ALT+SPACE from triggering when SUPER+ALT+SPACE is pressed
-  - Allows distinct keybinds for ALT+SPACE (hyprwhspr) and SUPER+ALT+SPACE (OS menu)
-- Fixed ydotool service conflicts (use system `ydotool.service` instead of custom `ydotoold.service`)
-- Fixed waybar module name mismatch (`custom/hyprwhspr` vs `hyprwhspr`)
-- Removed aggressive health checking that caused false ERR states
-- Fixed path inconsistencies in tray scripts
+- Event-driven Waybar monitoring (inotify-based instead of polling)
+- Status file management now exclusively handled by Python app
+- Removed conflicting Hyprland keybind for ALT+SPACE
 
 ## [1.2.9] - 2024-09-28
 

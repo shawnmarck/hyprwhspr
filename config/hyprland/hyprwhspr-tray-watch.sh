@@ -13,10 +13,25 @@ is_service_active() {
 
 is_recording() {
     is_service_active || return 1
-    pgrep -f "hyprwhspr" >/dev/null 2>&1 || return 1
-    local state
-    state=$(pactl list sources short | grep "$(pactl get-default-source 2>/dev/null)" | awk "{print \$NF}")
-    [[ "$state" == "RUNNING" ]]
+    # Check for explicit recording status file (most reliable)
+    local status_file="$HOME/.config/hyprwhspr/recording_status"
+    if [[ -f "$status_file" ]]; then
+        # Check file modification time to ensure it's recent (within last 3 seconds)
+        local file_age
+        file_age=$(($(date +%s) - $(stat -c %Y "$status_file" 2>/dev/null || echo 0)))
+        if [[ "$file_age" -lt 3 ]]; then
+            # File exists and is recent, read the status
+            local status
+            status="$(cat "$status_file" 2>/dev/null)"
+            [[ "$status" == "recording" ]]
+        else
+            # File exists but is stale, remove it
+            rm -f "$status_file" 2>/dev/null || true
+            return 1
+        fi
+    else
+        return 1
+    fi
 }
 
 get_state() {

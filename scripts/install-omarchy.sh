@@ -290,13 +290,48 @@ setup_whisper() {
 download_models() {
   log_info "Downloading Whisper base model…"
   mkdir -p "$USER_MODELS_DIR"
-  if [ -f "$USER_MODELS_DIR/ggml-base.en.bin" ] || [ -f "$USER_MODELS_DIR/base.en.bin" ]; then
-    log_info "Model already present"
-    return 0
+
+  local model_file="$USER_MODELS_DIR/ggml-base.en.bin"
+  local model_name="base.en"
+
+  if [ -f "$model_file" ] || [ -f "$USER_MODELS_DIR/base.en.bin" ]; then
+    log_info "Model already present, validating integrity..."
+
+    # Use whichever file exists
+    if [ -f "$model_file" ]; then
+      model_file_to_check="$model_file"
+    else
+      model_file_to_check="$USER_MODELS_DIR/base.en.bin"
+    fi
+
+    # Validate existing model
+    if validate_model_integrity "$model_name" "$model_file_to_check"; then
+      log_success "Existing model validation passed"
+      return 0
+    else
+      log_warning "Existing model validation failed, re-downloading..."
+      rm -f "$model_file_to_check"
+    fi
   fi
+
+  log_info "Downloading model: $model_name"
   local url="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
-  curl -L --fail -o "$USER_MODELS_DIR/ggml-base.en.bin" "$url"
-  log_success "Model downloaded"
+
+  if curl -L --fail -o "$model_file" "$url"; then
+    log_success "Model downloaded"
+
+    # Validate downloaded model
+    if validate_model_integrity "$model_name" "$model_file"; then
+      log_success "Model validation passed"
+    else
+      log_error "Downloaded model validation failed"
+      rm -f "$model_file"
+      return 1
+    fi
+  else
+    log_error "Failed to download model from: $url"
+    return 1
+  fi
 }
 
 # ----------------------- Systemd (user) ------------------------
@@ -618,8 +653,271 @@ test_installation() {
   log_success "Installation test passed"
 }
 
+# ----------------------- Arguments -----------------------------
+CHECK_MODE=false
+HELP=false
+
+usage() {
+  cat << EOF
+hyprwhspr Installation Script
+
+USAGE:
+  $0 [OPTIONS]
+
+OPTIONS:
+  --check     Check installation state and validate without making changes
+  --help      Show this help message
+
+EXAMPLES:
+  $0                    # Full installation
+  $0 --check           # Validate current installation
+  $0 --help            # Show help
+
+EOF
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --check)
+      CHECK_MODE=true
+      shift
+      ;;
+    --help)
+      HELP=true
+      shift
+      ;;
+    *)
+      log_error "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+# ----------------------- State management -----------------------
+STATE_FILE="$USER_BASE/installation.state"
+
+# State tracking functions
+save_state() {
+  local step="$1"
+  mkdir -p "$(dirname "$STATE_FILE")"
+  echo "$step" > "$STATE_FILE"
+  log_info "State saved: $step"
+}
+
+load_state() {
+  if [ -f "$STATE_FILE" ]; then
+    cat "$STATE_FILE"
+  fi
+}
+
+clear_state() {
+  rm -f "$STATE_FILE" 2>/dev/null || true
+}
+
+get_installation_steps() {
+  cat << EOF
+install_system_dependencies
+setup_python_environment
+setup_nvidia_support
+setup_whisper
+download_models
+setup_systemd_service
+setup_hyprland_integration
+setup_user_config
+setup_permissions
+setup_audio_devices
+validate_installation
+verify_permissions_and_functionality
+test_installation
+setup_waybar_integration
+EOF
+}
+
+# ----------------------- Model validation -----------------------
+validate_model_integrity() {
+  local model_name="$1"
+  local model_file="$2"
+
+  if [ ! -f "$model_file" ]; then
+    log_error "Model file not found: $model_file"
+    return 1
+  fi
+
+  # Simple file size check (basic integrity)
+  local model_size
+  model_size=$(stat -c%s "$model_file" 2>/dev/null || echo "0")
+
+  # Expected minimum sizes (rough estimates)
+  case "$model_name" in
+    "tiny"|"tiny.en")
+      if [ "$model_size" -lt 30000000 ]; then  # < 30MB
+        log_error "Model file too small: $model_name (${model_size} bytes)"
+        return 1
+      fi
+      ;;
+    "base"|"base.en")
+      if [ "$model_size" -lt 120000000 ]; then  # < 120MB
+        log_error "Model file too small: $model_name (${model_size} bytes)"
+        return 1
+      fi
+      ;;
+    "small"|"small.en")
+      if [ "$model_size" -lt 400000000 ]; then  # < 400MB
+        log_error "Model file too small: $model_name (${model_size} bytes)"
+        return 1
+      fi
+      ;;
+    "medium"|"medium.en")
+      if [ "$model_size" -lt 1400000000 ]; then  # < 1.4GB
+        log_error "Model file too small: $model_name (${model_size} bytes)"
+        return 1
+      fi
+      ;;
+    "large"|"large-v3")
+      if [ "$model_size" -lt 2800000000 ]; then  # < 2.8GB
+        log_error "Model file too small: $model_name (${model_size} bytes)"
+        return 1
+      fi
+      ;;
+  esac
+
+  log_success "Model integrity check passed: $model_name (${model_size} bytes)"
+  return 0
+}
+
+# ----------------------- Check mode ---------------------------
+check_installation() {
+  log_info "Checking hyprwhspr installation state..."
+
+  local issues=0
+
+  # Check installation directory
+  if [ ! -d "$INSTALL_DIR" ]; then
+    log_error "Installation directory missing: $INSTALL_DIR"
+    ((issues++))
+  else
+    log_success "Installation directory exists: $INSTALL_DIR"
+  fi
+
+  # Check critical files
+  local critical_files=(
+    "$INSTALL_DIR/lib/main.py"
+    "$INSTALL_DIR/lib/src/config_manager.py"
+    "$INSTALL_DIR/lib/src/whisper_manager.py"
+    "$INSTALL_DIR/config/systemd/hyprwhspr.service"
+    "$INSTALL_DIR/config/hyprland/hyprwhspr-tray.sh"
+  )
+
+  for file in "${critical_files[@]}"; do
+    if [ ! -f "$file" ]; then
+      log_error "Critical file missing: $file"
+      ((issues++))
+    else
+      log_success "Critical file exists: $(basename "$file")"
+    fi
+  done
+
+  # Check Python environment
+  if [ ! -d "$VENV_DIR" ]; then
+    log_error "Python virtual environment missing: $VENV_DIR"
+    ((issues++))
+  else
+    log_success "Python virtual environment exists: $VENV_DIR"
+
+    # Check critical Python packages
+    if [ -f "$VENV_DIR/bin/pip" ]; then
+      local packages=("sounddevice" "numpy" "evdev" "pyperclip")
+      for package in "${packages[@]}"; do
+        if "$VENV_DIR/bin/pip" show "$package" >/dev/null 2>&1; then
+          log_success "Python package installed: $package"
+        else
+          log_error "Python package missing: $package"
+          ((issues++))
+        fi
+      done
+    fi
+  fi
+
+  # Check whisper.cpp
+  if [ ! -f "$USER_WC_DIR/main" ]; then
+    log_error "Whisper binary missing: $USER_WC_DIR/main"
+    ((issues++))
+  else
+    log_success "Whisper binary exists: $USER_WC_DIR/main"
+  fi
+
+  # Check models
+  if [ ! -d "$USER_MODELS_DIR" ]; then
+    log_error "Models directory missing: $USER_MODELS_DIR"
+    ((issues++))
+  else
+    local model_count
+    model_count=$(find "$USER_MODELS_DIR" -name "*.bin" | wc -l)
+    if [ "$model_count" -eq 0 ]; then
+      log_error "No models found in: $USER_MODELS_DIR"
+      ((issues++))
+    else
+      log_success "Found $model_count model(s)"
+
+      # Validate each model
+      while IFS= read -r -d '' model_file; do
+        local model_name
+        model_name=$(basename "$model_file" .bin | sed 's/^ggml-//')
+        if ! validate_model_integrity "$model_name" "$model_file"; then
+          ((issues++))
+        fi
+      done < <(find "$USER_MODELS_DIR" -name "*.bin" -print0)
+    fi
+  fi
+
+  # Check systemd services
+  if ! systemctl --user list-unit-files | grep -q "$SERVICE_NAME"; then
+    log_error "Systemd service not found: $SERVICE_NAME"
+    ((issues++))
+  else
+    log_success "Systemd service installed: $SERVICE_NAME"
+    if systemctl --user is-active --quiet "$SERVICE_NAME"; then
+      log_success "Systemd service running: $SERVICE_NAME"
+    else
+      log_warning "Systemd service not running: $SERVICE_NAME"
+    fi
+  fi
+
+  # Check installation state
+  local current_state
+  current_state=$(load_state)
+  if [ -n "$current_state" ]; then
+    log_info "Last completed step: $current_state"
+  else
+    log_info "No installation state found"
+  fi
+
+  # Summary
+  echo
+  if [ "$issues" -eq 0 ]; then
+    log_success "Installation check passed - no issues found!"
+    return 0
+  else
+    log_error "Installation check failed - $issues issue(s) found"
+    log_info "Run the installer without --check to fix issues"
+    return 1
+  fi
+}
+
 # ----------------------- Main ---------------------------------
 main() {
+  if [ "$HELP" = true ]; then
+    usage
+    exit 0
+  fi
+
+  if [ "$CHECK_MODE" = true ]; then
+    check_installation
+    exit $?
+  fi
+
   log_info "Installing to $INSTALL_DIR"
 
   if ! is_aur; then
@@ -645,20 +943,46 @@ main() {
     log_info "AUR mode: payload already at $INSTALL_DIR"
   fi
 
-  install_system_dependencies
-  setup_python_environment
-  setup_nvidia_support
-  setup_whisper
-  download_models
-  setup_systemd_service   # <— auto-enable & start (all modes)
-  setup_hyprland_integration
-  setup_user_config
-  setup_permissions
-  setup_audio_devices
-  validate_installation
-  verify_permissions_and_functionality
-  test_installation
-  setup_waybar_integration
+  # Check for existing installation state
+  local current_state
+  current_state=$(load_state)
+  if [ -n "$current_state" ]; then
+    log_info "Resuming installation from step: $current_state"
+    log_info "To restart from scratch, run: rm -f \"$STATE_FILE\""
+    echo
+  fi
+
+  # Execute installation steps with state tracking
+  local steps
+  steps=$(get_installation_steps)
+
+  while IFS= read -r step; do
+    # Skip completed steps
+    if [ -n "$current_state" ]; then
+      if [ "$step" != "$current_state" ]; then
+        log_info "Skipping completed step: $step"
+        continue
+      else
+        # Found current step, clear it and execute
+        current_state=""
+        log_info "Executing step: $step"
+      fi
+    else
+      log_info "Executing step: $step"
+    fi
+
+    # Execute the step and save state on success
+    if $step; then
+      save_state "$step"
+    else
+      log_error "Step failed: $step"
+      log_error "Installation halted. Fix the issue and re-run to resume."
+      exit 1
+    fi
+  done <<< "$steps"
+
+  # Clear state file on successful completion
+  clear_state
 
   log_success "hyprwhspr installation completed!"
   log_info "Services active:"

@@ -34,6 +34,9 @@ class WhisperManager:
         # Whisper process state
         self.current_process = None
         self.ready = False
+
+        # Thread configuration
+        self.threads = 4  # Default thread count
         
     def initialize(self) -> bool:
         """Initialize the whisper manager and check dependencies"""
@@ -151,7 +154,7 @@ class WhisperManager:
                 '-f', audio_file_path,
                 '--output-txt',
                 '--language', 'en',
-                '--threads', '4',
+                '--threads', str(self.threads),
                 '--prompt', whisper_prompt
             ]
             
@@ -251,3 +254,24 @@ class WhisperManager:
                     break  # Don't add both versions of same model
         
         return sorted(available_models)
+
+    def set_threads(self, num_threads: int) -> bool:
+        """
+        Set the number of threads to use for whisper transcription
+
+        Args:
+            num_threads: Number of threads to use (must be positive integer)
+
+        Returns:
+            True if successful, False if invalid thread count
+        """
+        if num_threads <= 0:
+            print(f"ERROR: Thread count must be positive, got {num_threads}")
+            return False
+
+        if num_threads > 64:
+            print(f"WARNING: Very high thread count ({num_threads}), this may reduce performance")
+
+        self.threads = num_threads
+        print(f"Whisper thread count set to: {num_threads}")
+        return True

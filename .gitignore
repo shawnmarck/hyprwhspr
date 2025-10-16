@@ -43,3 +43,5 @@ config.json
 
 # Claude Code guidance file
 CLAUDE.md
+__pycache__/
+*.pyc
